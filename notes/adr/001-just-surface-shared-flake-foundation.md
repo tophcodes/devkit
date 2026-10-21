@@ -52,8 +52,9 @@ asking for them: deadnix and statix for Nix, shellcheck for shell scripts,
 typos for spelling, and prose-check for prose in documents and code comments.
 `nix flake check` fails on their errors. devkit owns prose-check and its
 base styles. A style that holds in one context only, such as the names of
-HAUSGOLD applications, lives with the consumer that knows the context and
-joins through the package's `extraStyles` parameter.
+HAUSGOLD applications, lives in a `.prose-check/styles/` directory of the
+repository that owns the context. prose-check applies it to every file below
+that directory and to the jj workspaces of that repository.
 
 **devenv joins through its flake-parts module** in repositories that need
 services such as a database, a queue or long-running processes. Such a

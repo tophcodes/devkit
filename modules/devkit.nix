@@ -36,7 +36,7 @@
     options.devkit = {
       fixtures = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = ["**/testdata/**"];
+        default = ["**/testdata/**" ".prose-check/**"];
         description = "Globs of files that contain bad text on purpose, such as linter fixtures. The prose check and typos skip them.";
       };
       packages = lib.mkOption {

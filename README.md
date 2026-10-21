@@ -62,3 +62,10 @@ ones.
 moving a repository onto devkit, adding a tool or a template, and handling a
 failed `just check`. The infra repository links it into `~/.claude/skills`.
 Each template carries an `AGENTS.md` for agents that read no user-scope rules.
+
+## Local prose rules
+
+A repository adds its own Vale styles under `.prose-check/styles/<Name>/`.
+prose-check applies every such style found in the directories above the
+checked file, and follows a jj workspace to its repository on the way up. A
+local style cannot replace `Prose` or `Slop`.

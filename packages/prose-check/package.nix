@@ -1,10 +1,4 @@
-# extraStyles: style directories by name that every file is also checked
-# against. Their fixtures are the caller's to run.
-{
-  pkgs,
-  extraStyles ? {},
-  ...
-}: let
+{pkgs, ...}: let
   slop = pkgs.fetchFromGitHub {
     owner = "Syntaf";
     repo = "vale-llm-slop";
@@ -53,18 +47,89 @@
         echo "Prose.EmDash missed the comment in dirty.rs"
         exit 1
       }
+    '';
 
-      ${pkgs.lib.concatStrings (pkgs.lib.mapAttrsToList (name: dir: ''
-          cp -r ${dir} $out/styles/${name}
-          sed -i 's/^BasedOnStyles = .*/&, ${name}/' $out/vale.ini
-        '')
-        extraStyles)}
-    '';
-in
-  pkgs.writeShellApplication {
+  # Besides the base styles, every style under a `.prose-check/styles/<Name>/`
+  # directory above the checked path applies, the nearest one per name. A jj
+  # workspace continues the search at its repository, so a session workspace
+  # sees the styles of the checkout it was made from.
+  prose-check = pkgs.writeShellApplication {
     name = "prose-check";
-    runtimeInputs = [pkgs.vale];
+    runtimeInputs = [pkgs.vale pkgs.coreutils pkgs.gnused];
     text = ''
-      exec vale --config=${config}/vale.ini "$@"
+      # The first existing path argument decides for the whole call. Without
+      # one, as for text on stdin, the working directory decides.
+      target="$PWD"
+      for arg in "$@"; do
+        if [[ "$arg" != -* && -e "$arg" ]]; then
+          target="$arg"
+          break
+        fi
+      done
+
+      declare -A found=()
+      dir="$(realpath -m "$target")"
+      [[ -d "$dir" ]] || dir="$(dirname "$dir")"
+      while :; do
+        for style in "$dir"/.prose-check/styles/*/; do
+          [[ -d "$style" ]] || continue
+          name="$(basename "$style")"
+          [[ -v "found[$name]" ]] || found[$name]="''${style%/}"
+        done
+        if [[ -f "$dir/.jj/repo" ]]; then
+          repo="$(<"$dir/.jj/repo")"
+          [[ "$repo" == /* ]] || repo="$dir/.jj/$repo"
+          dir="$(dirname "$(dirname "$(realpath -m "$repo")")")"
+          continue
+        fi
+        [[ "$dir" == / ]] && break
+        dir="$(dirname "$dir")"
+      done
+
+      if [[ ''${#found[@]} -eq 0 ]]; then
+        exec vale --config=${config}/vale.ini "$@"
+      fi
+
+      tmp="$(mktemp -d)"
+      trap 'rm -rf "$tmp"' EXIT
+      mkdir "$tmp/styles"
+      ln -s ${config}/styles/* "$tmp/styles/"
+      names=""
+      for name in "''${!found[@]}"; do
+        # A local style cannot replace a base style of the same name.
+        [[ -e "$tmp/styles/$name" ]] && continue
+        ln -s "''${found[$name]}" "$tmp/styles/$name"
+        names+=", $name"
+      done
+      sed "s/^BasedOnStyles = .*/&$names/" ${config}/vale.ini >"$tmp/vale.ini"
+      vale --config="$tmp/vale.ini" "$@"
     '';
-  }
+  };
+in
+  # A local style applies in its repository, in a jj workspace of it and to
+  # text on stdin from inside it, and nowhere else.
+  pkgs.runCommand "prose-check" {
+    nativeBuildInputs = [prose-check];
+    meta.mainProgram = "prose-check";
+  } ''
+    export HOME=$TMPDIR
+    mkdir -p repo/.jj/repo repo/.prose-check/styles/Local repo/sub workspace/.jj elsewhere
+    printf 'extends: existence\nmessage: "%%s"\nlevel: error\ntokens:\n  - frobnicate\n' \
+      > repo/.prose-check/styles/Local/Word.yml
+    echo "$TMPDIR/repo/.jj/repo" > workspace/.jj/repo
+    for dir in repo/sub workspace elsewhere; do
+      echo "We frobnicate the queue." > $dir/text.md
+    done
+
+    fires() { prose-check --no-exit --output=line "$@" | grep -q Local.Word; }
+    fires repo/sub/text.md || { echo "local style missed its repository"; exit 1; }
+    fires workspace/text.md || { echo "local style missed a jj workspace"; exit 1; }
+    ! fires elsewhere/text.md || { echo "local style fired outside its repository"; exit 1; }
+    (cd repo/sub && echo "We frobnicate." | fires --ext=.md) || {
+      echo "local style missed stdin inside its repository"
+      exit 1
+    }
+
+    mkdir -p $out/bin
+    ln -s ${prose-check}/bin/prose-check $out/bin/prose-check
+  ''
