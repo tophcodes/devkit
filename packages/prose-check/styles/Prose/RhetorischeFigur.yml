@@ -1,0 +1,10 @@
+# German rhetorical setups that announce weight instead of carrying it.
+extends: existence
+message: "Rhetorische Figur: '%s'. Delete it or state the claim."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\bund genau (?:das|hier|deshalb|darum|deswegen)\b'
+  - '\bdas ist es, was\b'
+  - '\bgenau (?:das|darin) (?:ist|liegt) (?:der punkt|das problem)\b'

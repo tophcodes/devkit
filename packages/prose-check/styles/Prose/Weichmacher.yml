@@ -1,0 +1,8 @@
+# German hedging adverbs. Replace the verb they prop up.
+extends: existence
+message: "Weichmacher: '%s'. Replace the verb it props up."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '(?<!\w)(?:wirklich|tatsächlich|letztlich|durchaus|gewissermaßen|schlichtweg|im grunde)(?!\w)'

@@ -55,6 +55,10 @@
         system,
         ...
       }: {
+        packages.prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
+        # The style rules quote the phrases they forbid.
+        devkit.fixtures = ["**/testdata/**" "packages/prose-check/styles/**"];
+
         checks.template-python =
           pkgs.linkFarmFromDrvs "template-python"
           (builtins.attrValues (templateFlake ./templates/python).checks.${system});

@@ -1,0 +1,8 @@
+# The Halbgeviertstrich is correct German typography, and the models set it far
+# more often than German writers do. A number range (2020–2024) is left alone.
+extends: existence
+message: "Gedankenstrich: '%s'. Finish the sentence instead."
+level: error
+nonword: true
+tokens:
+  - '(?<![0-9])–(?![0-9])'

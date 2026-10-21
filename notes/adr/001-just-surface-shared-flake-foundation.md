@@ -46,6 +46,14 @@ with `use flake`, and a justfile. devkit's own `nix flake check` instantiates
 and builds every template, so each template is a known-working starting point
 that an agent extends.
 
+**The module gates text as well as code.** Agents write most of the code and
+prose in these repositories, so every repository gets the same linters without
+asking for them: deadnix and statix for Nix, shellcheck for shell scripts,
+typos for spelling, and prose-check for prose in documents and code comments.
+`nix flake check` fails on their errors, and with it CI. devkit owns
+prose-check; the infra repository consumes it from devkit for its writing
+hooks.
+
 **devenv joins through its flake-parts module** in repositories that need
 services such as a database, a queue or long-running processes. Such a
 repository still has one flake and one lock file.

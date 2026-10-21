@@ -1,0 +1,8 @@
+# German marketing words that say nothing a plain word would not.
+extends: existence
+message: "Buzzword: '%s'. Say what happens."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\b(?:revolutionier|nahtlos|ganzheitlich|maßgeschneidert)\w*'

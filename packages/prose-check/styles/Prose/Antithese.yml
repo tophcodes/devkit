@@ -1,0 +1,11 @@
+# German antithesis: "nicht nur X, sondern auch Y", "kein X, sondern Y", and
+# the two-sentence form "Das ist kein Detail. Das ist der Kern."
+extends: existence
+message: "Antithese: '%s'. Rewrite it as a direct claim."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\bnicht nur\b[^.!?]*\bsondern auch\b'
+  - '\b(?:nicht|kein|keine|keinen)\b[^.,!?]*, sondern\b'
+  - '\b(?:ist|war) kein\w*\b[^.!?]*\.\s+(?:das|es) ist\b'

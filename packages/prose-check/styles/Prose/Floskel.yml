@@ -1,0 +1,14 @@
+# German stock phrases that cluster in generated text. The list is short on
+# purpose: most phrases in "so erkennst du KI-Texte" articles are ordinary
+# German that predates the models.
+extends: existence
+message: "Floskel: '%s'. Delete it."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\bes ist wichtig zu beachten\b'
+  - '\b(?:zusammenfassend|insgesamt) (?:lässt sich|kann man|kann gesagt)\b'
+  - '\bin der heutigen (?:zeit|welt)\b'
+  - '\b(?:zu guter letzt|nicht zuletzt|integraler bestandteil)\b'
+  - '\bauf (?:das|ein) (?:nächste|neues) level\b'

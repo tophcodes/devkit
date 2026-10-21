@@ -1,5 +1,5 @@
 # The flake-parts module every project imports. It provides the dev shell,
-# treefmt as the formatter, and the checks behind `just check`.
+# treefmt with formatters and linters, and the checks behind `just check`.
 {localInputs}: {self, ...}: {
   imports = [localInputs.treefmt-nix.flakeModule];
 
@@ -7,12 +7,32 @@
     config,
     lib,
     pkgs,
+    system,
     ...
   }: let
     cfg = config.devkit;
     requiredRecipes = ["default" "dev" "test" "fmt" "check"];
+    prose-check = localInputs.self.packages.${system}.prose-check;
+
+    # typos knows only English. German words its dictionary maps to an English
+    # correction are allowed here; a repository adds its own in `_typos.toml`,
+    # which is merged over this base.
+    typosBase.default.extend-words = {
+      ein = "ein";
+      ist = "ist";
+      vor = "vor";
+    };
+    typosLocal = self + "/_typos.toml";
+    typosConfig =
+      (pkgs.formats.toml {}).generate "typos.toml" (lib.recursiveUpdate typosBase
+        (lib.optionalAttrs (builtins.pathExists typosLocal) (lib.importTOML typosLocal)));
   in {
     options.devkit = {
+      fixtures = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = ["**/testdata/**"];
+        description = "Globs of files that contain bad text on purpose, such as linter fixtures. The prose check and typos skip them.";
+      };
       packages = lib.mkOption {
         type = lib.types.listOf lib.types.package;
         default = [];
@@ -32,7 +52,20 @@
     config = {
       treefmt = {
         projectRootFile = "flake.nix";
-        programs.alejandra.enable = true;
+        programs = {
+          alejandra.enable = true;
+          deadnix.enable = true;
+          statix.enable = true;
+          shellcheck.enable = true;
+          typos = {
+            enable = true;
+            # Reports only: the corrections are English and would rewrite German words.
+            autoFix = false;
+            configFile = toString typosConfig;
+            # Encrypted secrets are random text to typos.
+            excludes = cfg.fixtures ++ ["*.age"];
+          };
+        };
       };
 
       devShells.default = pkgs.mkShell {
@@ -41,12 +74,22 @@
             pkgs.just
             pkgs.watchexec
             config.treefmt.build.wrapper
+            prose-check
           ]
           ++ cfg.packages;
       };
 
       checks =
         {
+          # Fails on error-level alerts only; warnings are for the writer, not the gate.
+          prose = pkgs.runCommand "prose" {nativeBuildInputs = [prose-check];} ''
+            export HOME=$TMPDIR
+            cd ${self}
+            prose-check --minAlertLevel=error \
+              --glob='!{${lib.concatStringsSep "," cfg.fixtures}}' .
+            touch $out
+          '';
+
           recipes = pkgs.runCommand "recipes" {nativeBuildInputs = [pkgs.just];} ''
             cd ${self}
             have=" $(just --summary) "
