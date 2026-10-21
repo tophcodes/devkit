@@ -50,9 +50,10 @@ that an agent extends.
 prose in these repositories, so every repository gets the same linters without
 asking for them: deadnix and statix for Nix, shellcheck for shell scripts,
 typos for spelling, and prose-check for prose in documents and code comments.
-`nix flake check` fails on their errors, and with it CI. devkit owns
-prose-check; the infra repository consumes it from devkit for its writing
-hooks.
+`nix flake check` fails on their errors. devkit owns prose-check and its
+base styles. A style that holds in one context only, such as the names of
+HAUSGOLD applications, lives with the consumer that knows the context and
+joins through the package's `extraStyles` parameter.
 
 **devenv joins through its flake-parts module** in repositories that need
 services such as a database, a queue or long-running processes. Such a
@@ -102,8 +103,8 @@ tool touches one directory. `nix/` holds the modules that span the repository,
 such as the devkit configuration. Nix files that are not modules sit in a
 directory whose name starts with `_`, which import-tree skips.
 
-**CI on Forgejo calls `nix flake check`** through a reusable action in the
-ci-actions repository.
+**No CI runs yet.** `just check` is the gate. A CI added later calls
+`nix flake check`, the same command as `just check`.
 
 **Foreign repositories keep their own tooling.** This covers team repositories
 such as HAUSGOLD's. An overlay kept outside the repository, versioned
@@ -114,9 +115,13 @@ hatch. No repository is required to have one.
 An existing repository moves to the standard the next time work happens in it.
 Repositories nobody works in stay as they are.
 
-**Agents learn the convention from a user-scope rule.** The rule tells them to
-run `just` first in any repository, and to add the standard justfile as part
-of the work when one of Toph's own repositories lacks it.
+**Agents learn the convention from three places.** A user-scope rule tells
+them to run `just` first in any repository and `just check` before calling
+work done, and to add the standard justfile when one of Toph's own
+repositories lacks it. The devkit skill, shipped in this repository, carries
+the procedures: a new project, moving a repository onto devkit, adding a tool
+or a template, and handling a failed check. Each template carries an
+`AGENTS.md`, so agents that read no user-scope rules find the entry point too.
 
 ## Alternatives rejected
 

@@ -55,3 +55,10 @@ user-scope writing rules that a pattern can decide) and the Slop style from
 vale-llm-slop. Its build runs the fixtures in `packages/prose-check/testdata`:
 the clean files must raise no alert, and every Prose rule must fire on the dirty
 ones.
+
+## For agents
+
+`skills/devkit` is a Claude Code skill with the procedures: a new project,
+moving a repository onto devkit, adding a tool or a template, and handling a
+failed `just check`. The infra repository links it into `~/.claude/skills`.
+Each template carries an `AGENTS.md` for agents that read no user-scope rules.

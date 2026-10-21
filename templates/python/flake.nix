@@ -12,8 +12,8 @@
     };
   };
 
-  # Every .nix file under nix/ and tools/ is a flake-parts module.
+  # Every .nix file under nix/, tools/ and packages/ is a flake-parts module.
   outputs = inputs:
     inputs.flake-parts.lib.mkFlake {inherit inputs;}
-    (inputs.import-tree (builtins.filter builtins.pathExists [./nix ./tools]));
+    (inputs.import-tree (builtins.filter builtins.pathExists [./nix ./tools ./packages]));
 }
