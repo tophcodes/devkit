@@ -10,5 +10,8 @@ is code.
 echo "a — b"
 ```
 
+The export can take a minute. The Dialer API and the dialer API answer
+on dialer-api.local, see hausgold/dialer-api#279 and `dialer-api`.
+
 Der Job prüft alle fünf Minuten, ob eine Lieferung hängt, und stellt sie
 erneut ein.

@@ -1,0 +1,14 @@
+# An abstract thing acting like a person: a plan that "takes" a result, a
+# quota that "holds" an attempt "back". Name the actor and the literal verb.
+# The tokens are fixed phrases; the general shape (abstract subject plus
+# figurative verb) needs a reader, which the prose-review skill provides.
+extends: existence
+message: "'%s' gives an abstract thing a human verb. Name who acts and what happens."
+level: warning
+ignorecase: true
+nonword: true
+tokens:
+  - '\b(?:cannot|can''t|can|could)\s+take\s+(?:its|the|their)\s+\w+'
+  - '\bhold(?:s|ing)?\s+(?:no|nothing|any)\s+(?:\w+\s+){0,2}back\b'
+  - '\b(?:speaks?|talks?)\s+with\s+what\b'
+  - '\b(?:let|lets|letting)\s+go\s+of\b'
