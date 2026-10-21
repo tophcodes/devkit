@@ -8,12 +8,15 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Only the template checks use it; projects declare it themselves.
+    import-tree.url = "github:vic/import-tree";
   };
 
   outputs = inputs @ {
     self,
     nixpkgs,
     flake-parts,
+    import-tree,
     ...
   }:
     flake-parts.lib.mkFlake {inherit inputs;} ({flake-parts-lib, ...}: let
@@ -29,14 +32,13 @@
               outPath = path;
               inputs = templateInputs;
             };
-          inherit nixpkgs flake-parts;
+          inherit nixpkgs flake-parts import-tree;
           devkit = self;
         };
         flake = (import (path + "/flake.nix")).outputs templateInputs;
       in
         flake;
     in {
-      systems = ["x86_64-linux" "aarch64-linux"];
       imports = [
         flake-parts.flakeModules.flakeModules
         devkitModule

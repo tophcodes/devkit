@@ -1,7 +1,13 @@
 # The flake-parts module every project imports. It provides the dev shell,
 # treefmt with formatters and linters, and the checks behind `just check`.
-{localInputs}: {self, ...}: {
+{localInputs}: {
+  self,
+  lib,
+  ...
+}: {
   imports = [localInputs.treefmt-nix.flakeModule];
+
+  systems = lib.mkDefault ["x86_64-linux" "aarch64-linux"];
 
   perSystem = {
     config,

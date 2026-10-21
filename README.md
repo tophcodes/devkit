@@ -12,24 +12,22 @@ nix flake init -t git+ssh://git@github.com/tophcodes/devkit#python
 
 ## Existing project
 
-Add the input and import the module:
+Copy `flake.nix` from the template that matches the language: it declares
+nixpkgs, flake-parts, import-tree and devkit, and imports every module under
+`nix/` and `tools/`. Then configure devkit in `nix/devkit.nix`:
 
 ```nix
-inputs.devkit = {
-  url = "git+ssh://git@github.com/tophcodes/devkit";
-  inputs.nixpkgs.follows = "nixpkgs";
-  inputs.flake-parts.follows = "flake-parts";
-};
-
-# inside flake-parts.lib.mkFlake
-imports = [inputs.devkit.flakeModules.default];
-perSystem = {pkgs, ...}: {
-  devkit.packages = [/* compilers, linters, test runners */];
-  devkit.testCommand = "pytest";
-};
+{inputs, ...}: {
+  imports = [inputs.devkit.flakeModules.default];
+  perSystem = {pkgs, ...}: {
+    devkit.packages = [/* compilers, linters, test runners */];
+    devkit.testCommand = "pytest";
+  };
+}
 ```
 
-Then add a justfile with the recipes `default`, `dev`, `test`, `fmt` and
+A project tool gets its module as `tools/<name>/default.nix`, next to its
+source. Then add a justfile with the recipes `default`, `dev`, `test`, `fmt` and
 `check`; `nix flake check` fails while one of them is missing.
 
 ## What the module provides

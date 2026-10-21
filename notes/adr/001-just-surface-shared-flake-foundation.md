@@ -94,6 +94,14 @@ fails when one of the required recipes is missing.
   called from recipes. A script that gains dependencies or tests moves to
   `tools/`.
 
+**Nix code follows the dendritic pattern.** Every `.nix` file under `nix/`,
+`tools/` and `packages/` is a flake-parts module, and import-tree imports all of
+them; `flake.nix` holds only inputs and that one import. A tool's module lives
+in its own directory as `tools/<name>/default.nix`, so moving or deleting a
+tool touches one directory. `nix/` holds the modules that span the repository,
+such as the devkit configuration. Nix files that are not modules sit in a
+directory whose name starts with `_`, which import-tree skips.
+
 **CI on Forgejo calls `nix flake check`** through a reusable action in the
 ci-actions repository.
 
