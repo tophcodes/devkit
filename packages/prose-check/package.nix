@@ -1,4 +1,10 @@
-{pkgs, ...}: let
+# extraStyles: style directories by name that every file is also checked
+# against. Their fixtures are the caller's to run.
+{
+  pkgs,
+  extraStyles ? {},
+  ...
+}: let
   slop = pkgs.fetchFromGitHub {
     owner = "Syntaf";
     repo = "vale-llm-slop";
@@ -47,6 +53,12 @@
         echo "Prose.EmDash missed the comment in dirty.rs"
         exit 1
       }
+
+      ${pkgs.lib.concatStrings (pkgs.lib.mapAttrsToList (name: dir: ''
+          cp -r ${dir} $out/styles/${name}
+          sed -i 's/^BasedOnStyles = .*/&, ${name}/' $out/vale.ini
+        '')
+        extraStyles)}
     '';
 in
   pkgs.writeShellApplication {
