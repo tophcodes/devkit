@@ -1,0 +1,19 @@
+# list recipes
+default:
+    @just --list
+
+# rerun the tests on every change
+dev:
+    watchexec -e py -- pytest -q
+
+# run the tests
+test *args:
+    pytest {{ args }}
+
+# format all files
+fmt:
+    treefmt
+
+# everything CI checks
+check:
+    nix flake check
