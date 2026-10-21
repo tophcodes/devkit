@@ -68,4 +68,7 @@ Each template carries an `AGENTS.md` for agents that read no user-scope rules.
 A repository adds its own Vale styles under `.prose-check/styles/<Name>/`.
 prose-check applies every such style found in the directories above the
 checked file, and follows a jj workspace to its repository on the way up. A
+local style checks prose only: Markdown files, text on stdin with `--ext=.md`
+such as commit and PR bodies, and the comments of code formats Vale parses.
+Configuration, shell and Nix files reach Vale as plain text and stay out. A
 local style cannot replace `Prose` or `Slop`.

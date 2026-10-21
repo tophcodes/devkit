@@ -49,6 +49,13 @@
       }
     '';
 
+  # Local styles check prose only: Markdown (which also covers commit and PR
+  # text passed on stdin with --ext=.md) and the comments of the code formats
+  # Vale parses. Every other file reaches Vale as plain text, where a local
+  # style would flag identifiers. The list holds the extensions for which
+  # Vale 3 lints comments only.
+  proseGlob = "*.{md,markdown,c,cc,cpp,cs,go,h,hpp,hs,java,jl,js,jsx,less,lua,php,pl,proto,ps1,py,r,rb,rs,sass,scala,swift,ts,tsx}";
+
   # Besides the base styles, every style under a `.prose-check/styles/<Name>/`
   # directory above the checked path applies, the nearest one per name. A jj
   # workspace continues the search at its repository, so a session workspace
@@ -101,7 +108,13 @@
         ln -s "''${found[$name]}" "$tmp/styles/$name"
         names+=", $name"
       done
-      sed "s/^BasedOnStyles = .*/&$names/" ${config}/vale.ini >"$tmp/vale.ini"
+      # Vale applies only the most specific matching section, so the prose
+      # section repeats the base section's settings and adds the local styles.
+      {
+        cat ${config}/vale.ini
+        printf '\n[%s]\n' '${proseGlob}'
+        sed '1,/^\[\*\]$/d' ${config}/vale.ini | sed "s/^BasedOnStyles = .*/&$names/"
+      } >"$tmp/vale.ini"
       vale --config="$tmp/vale.ini" "$@"
     '';
   };
@@ -120,6 +133,8 @@ in
     for dir in repo/sub workspace elsewhere; do
       echo "We frobnicate the queue." > $dir/text.md
     done
+    printf '# We frobnicate here.\nx = "frobnicate"\n' > repo/sub/code.py
+    printf 'run:\n    frobnicate --all\n' > repo/sub/justfile
 
     fires() { prose-check --no-exit --output=line "$@" | grep -q Local.Word; }
     fires repo/sub/text.md || { echo "local style missed its repository"; exit 1; }
@@ -129,6 +144,11 @@ in
       echo "local style missed stdin inside its repository"
       exit 1
     }
+    [[ "$(prose-check --no-exit --output=line repo/sub/code.py | grep Local.Word | cut -d: -f2)" == 1 ]] || {
+      echo "local style must flag the comment in code.py and leave its string alone"
+      exit 1
+    }
+    ! fires repo/sub/justfile || { echo "local style fired on a plain-text file"; exit 1; }
 
     mkdir -p $out/bin
     ln -s ${prose-check}/bin/prose-check $out/bin/prose-check
