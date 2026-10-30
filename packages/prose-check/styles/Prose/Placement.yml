@@ -1,0 +1,13 @@
+# Data placed like furniture: packages that "hang under" a root, versions
+# that "sit in" a project, code that "lives in" a repository. The relation
+# is what the reader needs: a dependency of, listed in, kept in, built from.
+extends: existence
+message: "'%s' places a thing like furniture. Name the relation: a dependency of, listed in, kept in."
+level: warning
+ignorecase: true
+nonword: true
+tokens:
+  - '\bhang(?:s|ing)?\s+(?:under|below|off|from|beneath)\b'
+  - '\bsit(?:s|ting)?\s+(?:under|below|in|on|next to|behind|beneath)\b'
+  - '\blive(?:s|d)?\s+(?:under|in|next to|at)\b'
+  - '\bliving\s+(?:under|in)\b'

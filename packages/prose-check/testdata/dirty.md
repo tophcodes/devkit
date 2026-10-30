@@ -37,3 +37,5 @@ The table serves as the index.
 This PR introduces a retry.
 
 The call waits while the calendar cannot take its result.
+
+The gems hang under the root, and the config lives in the repository.
