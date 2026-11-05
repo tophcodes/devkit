@@ -12,7 +12,7 @@ path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')"
 [[ -f "$path" ]] || exit 0
 
 # Suggestions stay out of the context: they are for a deliberate review.
-hits="$(@proseCheck@ --minAlertLevel=warning --output=line "$path" 2>/dev/null)"
+hits="$(prose-check --minAlertLevel=warning --output=line "$path" 2>/dev/null)"
 [[ -n "$hits" ]] || exit 0
 
 count="$(printf '%s\n' "$hits" | grep -c .)"

@@ -1,5 +1,0 @@
-{
-  "name": "prose-guard",
-  "description": "Checks written prose against the anti-slop rules: flags a file after it is written, refuses an issue, PR or commit message before it goes out.",
-  "version": "0.1.0"
-}

@@ -1,14 +1,21 @@
-{pkgs, ...}:
-pkgs.runCommand "claude-jj-guard" {
-  nativeBuildInputs = [pkgs.shellcheck];
-} ''
-  mkdir -p $out/.claude-plugin $out/hooks
-  cp ${./plugin.json} $out/.claude-plugin/plugin.json
-  cp ${./hooks/hooks.json} $out/hooks/hooks.json
-
-  for hook in ${./hooks}/*.sh; do
-    install -Dm755 "$hook" "$out/hooks/$(basename "$hook")"
-  done
-
-  shellcheck $out/hooks/*.sh
-''
+{
+  mkClaudePlugin,
+  jq,
+}:
+mkClaudePlugin {
+  name = "jj-guard";
+  version = "0.1.0";
+  description = "In colocated jj repos, keeps the agent's git read-only and answers with the jj equivalent.";
+  runtimeInputs = [jq];
+  hooks.PreToolUse = [
+    {
+      matcher = "Bash";
+      hooks = [
+        {
+          "if" = "Bash(git *)";
+          script = ./hooks/git-readonly.sh;
+        }
+      ];
+    }
+  ];
+}

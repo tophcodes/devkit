@@ -6,7 +6,8 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STOP_HOOK="$HERE/hooks/arch-stop.sh"
 STATUS_HOOK="$HERE/hooks/arch-status.sh"
-export ARCH_CHECK_BIN="${ARCH_CHECK_BIN:-$HERE/../arch-check/arch-check}"
+# The hooks call arch-check by name; run them against this checkout's copy.
+export PATH="$HERE/../arch-check:$PATH"
 
 pass=0
 fail=0

@@ -3,7 +3,6 @@
 # human ever sees the diff. Silent unless something is red.
 set -uo pipefail
 
-ARCH_CHECK="${ARCH_CHECK_BIN:-@archCheck@}"
 MAX_ATTEMPTS="${ARCH_STOP_MAX_ATTEMPTS:-3}"
 
 input="$(cat)"
@@ -28,7 +27,7 @@ for f in "$attempts_dir"/*; do
 done
 
 rc=0
-report="$(CLAUDE_PROJECT_DIR="$project" "$ARCH_CHECK" 2>&1 >/dev/null)" || rc=$?
+report="$(CLAUDE_PROJECT_DIR="$project" arch-check 2>&1 >/dev/null)" || rc=$?
 
 # 0 = clean. 2 = a check could not run; blocking on broken tooling would trap
 # the agent in a loop it cannot escape, so warn the human and let it stop.

@@ -27,7 +27,7 @@ esac
 
 # Only error-level alerts deny. The warning and suggestion rules never block
 # on their own.
-hits="$(printf '%s' "$cmd" | @proseCheck@ --ext=.md --minAlertLevel=error --output=line 2>/dev/null)"
+hits="$(printf '%s' "$cmd" | prose-check --ext=.md --minAlertLevel=error --output=line 2>/dev/null)"
 [[ -n "$hits" ]] || exit 0
 
 jq -nc --arg hits "$hits" \

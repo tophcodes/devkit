@@ -1,5 +1,0 @@
-{
-  "name": "arch-harness",
-  "description": "Holds architecture decisions to their checks: runs docs/constraints.md on Stop and reports drift at SessionStart.",
-  "version": "0.1.0"
-}
