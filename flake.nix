@@ -46,6 +46,9 @@
 
       flake = {
         flakeModules.default = devkitModule;
+        # Builds a Claude Code plugin; `mkClaudePlugin pkgs {name, src, runtimeInputs}`.
+        lib.mkClaudePlugin = import ./lib/mk-claude-plugin.nix;
+        modules.homeManager.claude = flake-parts-lib.importApply ./modules/claude.nix {localInputs = inputs;};
         templates.python = {
           path = ./templates/python;
           description = "Python project with pytest and ruff";
@@ -57,7 +60,15 @@
         system,
         ...
       }: {
-        packages.prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
+        packages = let
+          mkClaudePlugin = import ./lib/mk-claude-plugin.nix pkgs;
+        in rec {
+          prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
+          arch-check = pkgs.callPackage ./packages/arch-check/package.nix {};
+          claude-arch-harness = pkgs.callPackage ./packages/claude-arch-harness/package.nix {inherit mkClaudePlugin arch-check;};
+          claude-jj-guard = pkgs.callPackage ./packages/claude-jj-guard/package.nix {inherit mkClaudePlugin;};
+          claude-prose-guard = pkgs.callPackage ./packages/claude-prose-guard/package.nix {inherit mkClaudePlugin prose-check;};
+        };
         # The style rules quote the phrases they forbid.
         devkit.fixtures = ["**/testdata/**" "packages/prose-check/styles/**"];
 
