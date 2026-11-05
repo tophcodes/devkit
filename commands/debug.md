@@ -17,10 +17,10 @@ understand to be happening from the outside. One or two sentences max.
 List candidate root causes ordered by: **likelihood × ease of verification**.
 Cheapest test first. Format:
 
-> H1: [What you think is true] — because [reasoning from symptoms]
+> H1: [What you think is true], because [reasoning from symptoms]
 > H2: ...
 
-Cap at 3 unless the problem is genuinely multi-layered.
+Cap at 3 unless the problem is multi-layered.
 
 ### 3. Derive Observables
 For each hypothesis, derive what you would concretely expect to see if it were

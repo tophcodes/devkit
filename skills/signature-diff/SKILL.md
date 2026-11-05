@@ -1,6 +1,6 @@
 ---
 name: signature-diff
-description: Use when the user asks for a signature diff, API surface, Signaturdiff, contract changes, or "what changed for callers" on a commit, branch or PR — and whenever a change is being handed over for review and only its interface matters.
+description: Use when the user asks for a signature diff, API surface, Signaturdiff, contract changes, or "what changed for callers" on a commit, branch or PR, and whenever a change is being handed over for review and only its interface matters.
 ---
 
 # Signature diff
@@ -24,7 +24,7 @@ Fixed order. Omit a layer with no changes; never reorder them.
 | Database | tables, columns, indexes, constraints |
 | Internal | helpers and private methods whose signature moved |
 
-Layer names are the language of the codebase at hand — a frontend has
+Layer names are the language of the codebase at hand: a frontend has
 components and props where a Rails service has models and jobs. Keep the
 outermost-first rule and rename the rows.
 
@@ -40,7 +40,7 @@ POST /v1/subscriptions
 ```
 
 Unchanged neighbours appear only where their absence would read as removal.
-A short line after a block carries what the signatures cannot say — a queue
+A short line after a block carries what the signatures cannot say: a queue
 that must drain before deploy, a field consumers still read.
 
 ## Breaking risk (only on request)

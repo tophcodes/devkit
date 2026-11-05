@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for arch-check. Run: bash packages/arch-check/test.sh
-# No test framework — arch-check itself must run with nothing but bash, jq, rg.
+# No test framework: arch-check itself must run with nothing but bash, jq, rg.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -201,7 +201,7 @@ rule beta
 }
 
 t_count_surfaces_broken() {
-  # --count feeds the SessionStart hook. A broken check is not "green" — if it
+  # --count feeds the SessionStart hook. A broken check is not "green". If it
   # only counted violations, two typos would report as "0/2 rot".
   local d
   d="$(mkproject 'rule one

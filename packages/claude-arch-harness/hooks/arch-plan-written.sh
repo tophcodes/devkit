@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PostToolUse hook: a plan or spec just landed. Architecture decisions are made
-# while writing those, scattered over dozens of tasks — this is the moment to
+# while writing those, scattered over dozens of tasks. This is the moment to
 # collect them, not after the diff exists.
 #
 # A skill description only fires if the model notices. A hook fires because a

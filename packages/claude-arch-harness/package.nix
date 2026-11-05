@@ -8,7 +8,7 @@ in
     cp ${./plugin.json} $out/.claude-plugin/plugin.json
     cp ${./hooks/hooks.json} $out/hooks/hooks.json
 
-    # The hooks resolve arch-check by absolute store path, not through PATH —
+    # The hooks resolve arch-check by absolute store path, not through PATH:
     # a hook runs in whatever environment the agent happens to have.
     for hook in ${./hooks}/*.sh; do
       name="$(basename "$hook")"

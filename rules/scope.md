@@ -6,5 +6,5 @@
 
 # Root Cause Over Workarounds
 
-- Diagnose and fix the actual root cause rather than proposing workarounds (e.g., don't add `denyInterfaces` to mask a docker0 announcement issue — fix the announcement).
+- Diagnose and fix the actual root cause rather than proposing workarounds (e.g., don't add `denyInterfaces` to mask a docker0 announcement issue; fix the announcement).
 - If a first fix doesn't work, step back and reconsider the diagnosis rather than piling on more patches.

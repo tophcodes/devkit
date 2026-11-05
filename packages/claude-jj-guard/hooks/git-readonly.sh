@@ -244,7 +244,7 @@ case "$sub" in
     ;;
 esac
 
-# A write whose jj equivalent is mechanical is denied, not asked. A denial
+# A write whose jj equivalent is mechanical is denied without asking. A denial
 # goes back to the agent with the reason, so it reaches for the jj command
 # itself; asking spends a human decision on a substitution that has one right
 # answer.
@@ -254,7 +254,7 @@ case "$sub" in
   # git. That is the one routine write the human has to see.
   commit)
     decision=ask
-    hint="jj commit, der Working Copy ist bereits ein Commit, jj describe setzt die Nachricht; nur ein Submodule-Gitlink-Bump braucht wirklich git"
+    hint="jj commit, der Working Copy ist bereits ein Commit, jj describe setzt die Nachricht; nur ein Submodule-Gitlink-Bump braucht git"
     ;;
   checkout | switch) hint="jj new <rev> für einen neuen Change, jj edit <rev> um einen bestehenden zu bearbeiten" ;;
   reset) hint="jj abandon um den Change wegzuwerfen, jj undo um die letzte Operation zurückzunehmen" ;;

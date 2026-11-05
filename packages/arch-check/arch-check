@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# arch-check — run the checks a repo attaches to its architecture decisions.
+# arch-check: run the checks a repo attaches to its architecture decisions.
 #
 # Two sources, in this order:
 #   1. `checks:` in the YAML frontmatter of the decision records themselves.
@@ -77,7 +77,7 @@ else
 fi
 
 # --- source 1: decision records ---------------------------------------------
-# Only what sits directly in the decision directory is current truth —
+# Only what sits directly in the decision directory is current truth;
 # archive/ and draft/ are excluded by not recursing.
 adr_dir=""
 for d in docs/adr adr decisions docs/decisions notes/adr; do
@@ -124,7 +124,7 @@ fi
 
 # --- source 2: docs/constraints.md ------------------------------------------
 # A non-indented line starts a rule; the rule text is its identity. Indented
-# lines belong to it — "check:" carries the command, anything else (a
+# lines belong to it: "check:" carries the command, anything else (a
 # "→ ADR-nnn" pointer) is for humans and ignored here. Rules without a check
 # never surface: they are prose, including markdown headings.
 constraints="$root/docs/constraints.md"
@@ -190,7 +190,7 @@ for i in "${!rules[@]}"; do
   rc=0
   (cd "$root" && timeout "$timeout_s" bash -c "${checks[$i]}") >/dev/null 2>&1 || rc=$?
 
-  # A check that cannot run is broken tooling, not a violated decision — the
+  # A check that cannot run is broken tooling, not a violated decision. The
   # difference matters because the Stop hook must not block over a typo.
   case "$rc" in
     0) status[i]=ok ;;
@@ -218,7 +218,7 @@ fi
 
 case "$mode" in
   count)
-    # A broken check is not green — say so, or the SessionStart hook reports
+    # A broken check is not green. Say so, or the SessionStart hook reports
     # two typos as "0/2 rot".
     if ((broken_n > 0)); then
       printf '%d/%d rot, %d kaputt\n' "$violated_n" "$matched" "$broken_n"
