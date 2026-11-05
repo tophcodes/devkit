@@ -24,8 +24,11 @@
     # correction are allowed here; a repository adds its own in `_typos.toml`,
     # which is merged over this base.
     typosBase.default.extend-words = {
+      als = "als";
       ein = "ein";
+      Geometrie = "Geometrie";
       ist = "ist";
+      legt = "legt";
       vor = "vor";
     };
     typosLocal = self + "/_typos.toml";

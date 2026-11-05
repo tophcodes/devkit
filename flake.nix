@@ -57,7 +57,13 @@
         system,
         ...
       }: {
-        packages.prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
+        packages = rec {
+          prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
+          arch-check = pkgs.callPackage ./packages/arch-check/package.nix {};
+          claude-arch-harness = pkgs.callPackage ./packages/claude-arch-harness/package.nix {};
+          claude-jj-guard = pkgs.callPackage ./packages/claude-jj-guard/package.nix {};
+          claude-prose-guard = pkgs.callPackage ./packages/claude-prose-guard/package.nix {inherit prose-check;};
+        };
         # The style rules quote the phrases they forbid.
         devkit.fixtures = ["**/testdata/**" "packages/prose-check/styles/**"];
 

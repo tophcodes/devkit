@@ -1,0 +1,5 @@
+{
+  "name": "jj-guard",
+  "description": "In colocated jj repos, keeps the agent's git read-only and answers with the jj equivalent.",
+  "version": "0.1.0"
+}
