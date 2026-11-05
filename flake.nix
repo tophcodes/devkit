@@ -46,6 +46,7 @@
 
       flake = {
         flakeModules.default = devkitModule;
+        modules.homeManager.claude = flake-parts-lib.importApply ./modules/claude.nix {localInputs = inputs;};
         templates.python = {
           path = ./templates/python;
           description = "Python project with pytest and ruff";
