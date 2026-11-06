@@ -19,7 +19,11 @@ folder; `.gitignore` keeps them out.
 
 The labels the explorer reads come from `claude-herdr-status`, the Claude Code
 hook script in `packages/claude-herdr-status`. The Helix keys the mods press
-(`alt-f12` opens a file, `alt-f11` loads the `herdr` theme) are bound in each
-machine's Helix configuration.
+are bound in each machine's Helix configuration: `alt-f12` opens a file,
+`alt-f11` loads the `herdr` theme, `alt-f10` runs `:diff-base` and `alt-f9`
+runs `:diff-base-file`. The last two need the Helix from `overlays.helix`
+(`packages/helix`): the explorer sets the commit the tab's hx diffs against
+from the range it marks, and opens a file as a read-only snapshot when the
+range ends below the working copy.
 
 After a change, run `herdr-app check` on each changed mod folder.

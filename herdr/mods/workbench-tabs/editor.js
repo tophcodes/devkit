@@ -3,6 +3,10 @@
 // helix config binds to `:open` on that file's content (herdr-core cannot type ":").
 // Only the tab's own hx is touched; any other hx in the tab stays as it is.
 // hx, the handoff file and `hc keys` all run on the machine the tab's space lives on.
+// The diff hx shows follows the explorer (see the helix overlay in devkit): the
+// `<handoff>.base` file holds a full commit id and alt-f10 runs `:diff-base` on it; for a
+// snapshot, `<handoff>.base-file` names the file holding its base and alt-f9 runs
+// `:diff-base-file` on it.
 // This file exists in mods/explorer, mods/workbench-tabs and mods/workbench-pane: a mod
 // cannot import from another mod's folder. Keep the copies identical.
 import { terminals, panes, spaces, run, exec, shared, setShared } from "herdr";
@@ -14,6 +18,10 @@ const local = (id) => id.split("/").pop();
 export const machineOf = (tab) => spaces().find((s) => s.tabs.some((t) => t.id === tab))?.machine ?? null;
 const handoff = (tab) => `/tmp/herdr-explorer-${local(tab)}`;
 const marker = (tab) => `HERDR_OPEN=${handoff(tab)}`;
+
+/** Where a file is kept as it was in a commit: `kind` "tip" is the shown snapshot, "base"
+ *  the content it is diffed against. On the tab's machine. */
+export const snapshotPath = (tab, kind, commit, path) => `${handoff(tab)}.snap/${kind}-${commit ?? "none"}/${path}`;
 
 /** The tab's hx terminal while hx still runs in it, else null. */
 export function editorOf(tab) {
@@ -95,20 +103,34 @@ async function placeEditor(tab, start) {
   }
 }
 
-const startEditor = (tab, file, folder) => placeEditor(tab, () => run("terminal.open", {
-  argv: ["env", marker(tab), "hx", ...(file ? [file] : [])], folder: folder ?? tabFolder(tab) ?? undefined, place: "right" }));
+// A new hx starts on HEAD; alt-f10 sets the explorer's base, alt-f9 the snapshot's.
+async function startEditor(tab, file, folder, base = null) {
+  await placeEditor(tab, () => run("terminal.open", {
+    argv: ["env", marker(tab), "hx", ...(file ? [file] : [])], folder: folder ?? tabFolder(tab) ?? undefined, place: "right" }));
+  const ed = editorOf(tab);
+  if (ed) await exec("hc", ["keys", local(ed.address), "alt+f10", ...(base ? ["alt+f9"] : [])], { on: machineOf(tab) });
+}
 const showEditor = (tab, ed) => placeEditor(tab, () => run("terminal.keep", { terminal: ed.address, place: "right" }));
 
 /** Opens a file (absolute path on the tab's machine) in the tab's hx: starts hx when none
- *  runs, shows a parked one. */
-export async function openInEditor(tab, file, folder) {
+ *  runs, shows a parked one. `base`, a file, replaces the file's diff base (snapshots). */
+export async function openInEditor(tab, file, folder, base = null) {
   const on = machineOf(tab);
-  await exec("sh", ["-c", 'printf %s "$2" > "$1"', "handoff", handoff(tab), file], { on });
+  await exec("sh", ["-c", 'printf %s "$2" > "$1" && printf %s "$3" > "$1.base-file"', "handoff", handoff(tab), file, base ?? ""], { on });
   const ed = editorOf(tab);
-  if (!ed) { await startEditor(tab, file, folder); return; }
+  if (!ed) { await startEditor(tab, file, folder, base); return; }
   if (!editorPane(tab)) await showEditor(tab, ed);
   else run("pane.focus", { terminal: ed.address });
-  await exec("hc", ["keys", local(ed.address), "esc", "alt+f12"], { on });
+  await exec("hc", ["keys", local(ed.address), "esc", "alt+f12", ...(base ? ["alt+f9"] : [])], { on });
+}
+
+/** Sets the commit the tab's hx diffs every file against: a full id, null for HEAD. The
+ *  text of open files stays as it is. */
+export async function setEditorBase(tab, commit) {
+  const on = machineOf(tab);
+  await exec("sh", ["-c", 'printf %s "$2" > "$1.base"', "base", handoff(tab), commit ?? ""], { on });
+  const ed = editorOf(tab);
+  if (ed) await exec("hc", ["keys", local(ed.address), "esc", "alt+f10"], { on });
 }
 
 /** The tab bar's Editor button: hide (park; hx keeps running), show, or start hx. */

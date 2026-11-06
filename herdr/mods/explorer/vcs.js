@@ -154,6 +154,24 @@ async function diff(repo, from, to) {
   return out;
 }
 
+/** The full commit id a revision names (a jj revset or a git revision), the first when it
+ *  names several. */
+export async function commitOf(repo, rev) {
+  if (repo.kind === "jj") {
+    const out = await run(repo, "jj", ["log", "--no-graph", "--ignore-working-copy", "-r", rev, "-T", 'commit_id ++ "\\n"']);
+    return out.split("\n")[0] || null;
+  }
+  return (await run(repo, "git", ["rev-parse", "--verify", `${rev}^{commit}`])).trim();
+}
+
+/** Writes `path` (relative to root) as it is in `commit` to `dest`, read-only, and empty
+ *  when the commit lacks it. Reads through git, so a jj repository must be colocated. */
+export async function writeFileAt(repo, commit, path, dest) {
+  const script = 'mkdir -p "$(dirname "$1")" && rm -f "$1" && { git -C "$4" show "$2:$3" > "$1" 2>/dev/null || : > "$1"; } && chmod 444 "$1"';
+  const r = await exec("sh", ["-c", script, "snapshot", dest, commit ?? "", path, repo.root], { on: repo.on });
+  if (r.code !== 0) throw new Error((r.stderr || "snapshot failed").trim().split("\n")[0]);
+}
+
 /** Ignored paths relative to root; folders end in "/". Needs a .git (jj repos are colocated). */
 export async function ignored(repo) {
   const out = await run(repo, "git", ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]).catch(() => "");

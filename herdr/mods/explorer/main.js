@@ -8,12 +8,14 @@ import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { props, theme, watchFolder, shared, setShared, focused, home } from "herdr";
 import * as vcs from "./vcs.js";
-import { openInEditor, tabFolder, tabHistory, tabBases, machineOf } from "./editor.js";
+import { openInEditor, setEditorBase, snapshotPath, tabFolder, tabHistory, tabBases, machineOf } from "./editor.js";
 
 /** The tab this explorer shows: a pinned one from props, else the window's shown tab. */
 const currentTab = () => props()?.tab ?? focused()?.tab ?? null;
 
 const COLOR = { A: "ansi2", M: "ansi4", D: "ansi1", R: "ansi8" };
+// Tab -> the commit its hx was last told to diff against, kept across the sidebar's loads.
+const sentBases = new Map();
 const MAX_ROWS = 5000;
 
 export default class Explorer extends View {
@@ -50,6 +52,10 @@ export default class Explorer extends View {
     this.picker = null;
     this.projectsAt = 0;
     this.error = null;
+    // The commit the tab's hx diffs against, and the line's upper end when it is not the
+    // working copy (syncEditor).
+    this.baseCommit = null;
+    this.tip = null;
   }
 
   key() { return `explorer:${this.tab}`; }
@@ -111,6 +117,7 @@ export default class Explorer extends View {
             : this.moved() ? await vcs.changes(repo, list[span.top], list[span.bottom])
             : await vcs.baseDiff(repo, base, this.head);
           this.ignored = await vcs.ignored(repo);
+          await this.syncEditor(repo, base, span, list);
         }
         this.kinds = folderKinds(this.changes);
         this.index = childIndex(this.changes);
@@ -179,6 +186,30 @@ export default class Explorer extends View {
     this.mode = mode;
     this.save();
     this.refresh(cx);
+  }
+
+  // The tab's hx diffs against the commit under the line's lower end, or the base while the
+  // line is the default. A line whose upper end is not the working copy makes the tree open
+  // files as they were in that commit: read-only snapshots (openFile).
+  async syncEditor(repo, base, span, list) {
+    const top = span ? list[span.top] : null, bottom = span ? list[span.bottom] : null;
+    const from = !this.moved() ? base
+      : repo.kind === "jj" ? `${bottom.id}-` : bottom.worktree ? "HEAD" : `${bottom.id}^`;
+    this.baseCommit = await vcs.commitOf(repo, from).catch(() => null);
+    const working = !top || (repo.kind === "jj" ? top.current : top.worktree);
+    this.tip = working ? null : await vcs.commitOf(repo, top.id).catch(() => null);
+    if (sentBases.get(this.tab) !== this.baseCommit) {
+      sentBases.set(this.tab, this.baseCommit);
+      await setEditorBase(this.tab, this.baseCommit);
+    }
+  }
+
+  async openFile(path) {
+    const repo = this.repo, file = `${repo.root}/${path}`;
+    if (!this.tip) return openInEditor(this.tab, file, repo.root);
+    const snap = snapshotPath(this.tab, "tip", this.tip, path), base = snapshotPath(this.tab, "base", this.baseCommit, path);
+    await Promise.all([vcs.writeFileAt(repo, this.tip, path, snap), vcs.writeFileAt(repo, this.baseCommit, path, base)]);
+    return openInEditor(this.tab, snap, repo.root, base);
   }
 
   /** The commit this repository stood at before the tab's agent first wrote to it. */
@@ -271,7 +302,7 @@ export default class Explorer extends View {
         .cursor_pointer().hover((s) => s.bg(t.hover))
         .on_click((_e, cx) => {
           if (entry.dir) this.toggleFolder(path, cx);
-          else if (kind !== "D") openInEditor(this.tab, `${this.repo.root}/${path}`, this.repo.root);
+          else if (kind !== "D") this.openFile(path).catch((e) => { this.error = String(e?.message ?? e); });
         })
         .child(entry.dir ? svg(`mods/files/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
         .child(svg(`mods/files/${entry.dir ? "folder" : "file"}.svg`).size(14).flex_none().text_color(kind ? color : t.muted))
