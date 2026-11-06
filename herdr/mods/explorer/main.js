@@ -6,9 +6,9 @@
 // Works on jj and git repositories, on any machine the tab lives on.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { props, theme, watchFolder, shared, setShared, focused, home } from "herdr";
+import { props, theme, watchFolder, readTextFile, exec, focused, home } from "herdr";
 import * as vcs from "./vcs.js";
-import { openInEditor, setEditorBase, snapshotPath, tabFolder, tabHistory, tabBases, machineOf } from "./editor.js";
+import { openInEditor, setEditorBase, snapshotPath, statePath, tabFolder, tabHistory, tabBases, machineOf } from "./editor.js";
 
 /** The tab this explorer shows: a pinned one from props, else the window's shown tab. */
 const currentTab = () => props()?.tab ?? focused()?.tab ?? null;
@@ -26,18 +26,14 @@ export default class Explorer extends View {
     cx.timer.every(30000, (cx) => this.refresh(cx));
   }
 
-  // The sidebar has one copy for every tab: switching tabs loads that tab's saved state
-  // and drops what was read for the previous one.
+  // The sidebar has one copy for every tab: switching tabs drops what was read for the
+  // previous one; the next refresh reads the new tab's choices (readState).
   load(tab) {
     this.tab = tab;
-    const saved = shared(this.key()) ?? {};
-    this.mode = saved.mode ?? "full";
-    this.base = saved.base ?? null;
-    this.head = saved.head ?? null;
-    this.range = saved.range ?? null;
-    // The project the tree shows: null follows the tab's folder ("Auto"), a path pins one
-    // workspace of the tab's session.
-    this.project = saved.project ?? null;
+    this.apply({});
+    // The state file's text as last read or written; undefined until the first read.
+    this.stateText = undefined;
+    this.writing = Promise.resolve();
     this.sessionProjects = [];
     this.projectMenu = false;
     this.repo = null;
@@ -58,8 +54,37 @@ export default class Explorer extends View {
     this.tip = null;
   }
 
-  key() { return `explorer:${this.tab}`; }
-  save() { setShared(this.key(), { mode: this.mode, base: this.base, head: this.head, range: this.range, project: this.project }); }
+  apply(saved) {
+    this.mode = saved.mode ?? "full";
+    this.base = saved.base ?? null;
+    this.head = saved.head ?? null;
+    this.range = saved.range ?? null;
+    // The project the tree shows: null follows the tab's folder ("Auto"), a path pins one
+    // workspace of the tab's session.
+    this.project = saved.project ?? null;
+  }
+
+  // The choices live in the tab's state file (statePath), so windows showing the same tab
+  // agree. Writes run in order, and a read waits for them, so it never undoes a choice made
+  // in this window. Another window's choice shows at this window's next refresh.
+  save() {
+    const text = JSON.stringify({ mode: this.mode, base: this.base, head: this.head, range: this.range, project: this.project });
+    const tab = this.tab, on = machineOf(tab);
+    this.stateText = text;
+    this.writing = this.writing.then(() => exec("sh", ["-c", 'printf %s "$2" > "$1.tmp" && mv "$1.tmp" "$1"', "state", statePath(tab), text], { on }))
+      .catch(() => null);
+  }
+
+  async readState() {
+    const tab = this.tab;
+    await this.writing;
+    const text = await readTextFile(statePath(tab), { on: machineOf(tab) }).catch(() => null);
+    if (this.tab !== tab || text === this.stateText) return;
+    this.stateText = text;
+    let saved = {};
+    try { saved = JSON.parse(text ?? "{}") ?? {}; } catch { /* a broken file reads as no choices */ }
+    this.apply(saved);
+  }
 
   chooseProject(path, cx) {
     this.project = path;
@@ -90,6 +115,7 @@ export default class Explorer extends View {
       try {
         const auto = tabFolder(this.tab), on = machineOf(this.tab);
         if (!auto) throw new Error("No terminal in this tab");
+        await this.readState();
         if (Date.now() - (this.projectsAt ?? 0) > 30000) {
           this.sessionProjects = await vcs.sessionProjects(auto, on);
           this.projectsAt = Date.now();

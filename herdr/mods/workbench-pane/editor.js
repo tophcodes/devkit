@@ -23,6 +23,10 @@ const marker = (tab) => `HERDR_OPEN=${handoff(tab)}`;
  *  the content it is diffed against. On the tab's machine. */
 export const snapshotPath = (tab, kind, commit, path) => `${handoff(tab)}.snap/${kind}-${commit ?? "none"}/${path}`;
 
+/** The file holding the explorer's choices for a tab, as JSON, on the tab's machine: every
+ *  window that shows the tab reads and writes the same choices. */
+export const statePath = (tab) => `${handoff(tab)}.state`;
+
 /** The tab's hx terminal while hx still runs in it, else null. */
 export function editorOf(tab) {
   if (!tab) return null;
