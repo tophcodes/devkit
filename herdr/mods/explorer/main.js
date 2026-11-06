@@ -33,7 +33,6 @@ export default class Explorer extends View {
     this.apply({});
     // The state file's text as last read or written; undefined until the first read.
     this.stateText = undefined;
-    this.writing = Promise.resolve();
     this.sessionProjects = [];
     this.projectMenu = false;
     this.repo = null;
@@ -65,19 +64,33 @@ export default class Explorer extends View {
   }
 
   // The choices live in the tab's state file (statePath), so windows showing the same tab
-  // agree. Writes run in order, and a read waits for them, so it never undoes a choice made
-  // in this window. Another window's choice shows at this window's next refresh.
-  save() {
+  // agree. One task writes the newest choices until none are left; while it runs, reads
+  // are skipped, so a read never undoes a choice made in this window. Another window's
+  // choice shows at this window's next refresh. The write runs in a cx.spawn task: a
+  // promise chain outside one is not driven by the host and never settles.
+  save(cx) {
     const text = JSON.stringify({ mode: this.mode, base: this.base, head: this.head, range: this.range, project: this.project });
-    const tab = this.tab, on = machineOf(tab);
     this.stateText = text;
-    this.writing = this.writing.then(() => exec("sh", ["-c", 'printf %s "$2" > "$1.tmp" && mv "$1.tmp" "$1"', "state", statePath(tab), text], { on }))
-      .catch(() => null);
+    this.unsaved = { tab: this.tab, text };
+    if (this.flushing) return;
+    this.flushing = true;
+    cx.spawn(async () => {
+      try {
+        while (this.unsaved) {
+          const { tab, text } = this.unsaved;
+          this.unsaved = null;
+          await exec("sh", ["-c", 'printf %s "$2" > "$1.tmp" && mv "$1.tmp" "$1"', "state", statePath(tab), text], { on: machineOf(tab) })
+            .catch(() => null);
+        }
+      } finally {
+        this.flushing = false;
+      }
+    });
   }
 
   async readState() {
     const tab = this.tab;
-    await this.writing;
+    if (this.flushing) return;
     // exec, which gives up after 30 s; a read that never returns would hold `loading` and
     // stop every later refresh.
     const r = await exec("sh", ["-c", 'cat "$1" 2>/dev/null; true', "state", statePath(tab)], { on: machineOf(tab) }).catch(() => null);
@@ -95,7 +108,7 @@ export default class Explorer extends View {
   chooseProject(path, cx) {
     this.project = path;
     this.projectMenu = false;
-    this.save();
+    this.save(cx);
     this.refresh(cx);
   }
   list() { return [...this.rows.above, ...this.rows.below]; }
@@ -133,7 +146,7 @@ export default class Explorer extends View {
           this.entries = new Map();
           this.open = new Set();
           // Base, head and line name revisions of the previous repository.
-          if (!first) { this.base = null; this.head = null; this.range = null; this.save(); }
+          if (!first) { this.base = null; this.head = null; this.range = null; this.save(cx); }
           this.watch(this.repo, cx);
         }
         const repo = this.repo;
@@ -207,16 +220,16 @@ export default class Explorer extends View {
     const list = this.list(), { top, bottom } = this.nextSpan(i, half);
     this.range = { top: list[top].id, bottom: list[bottom].id };
     this.hover = null;
-    this.save();
+    this.save(cx);
     this.refresh(cx);
   }
 
-  reset(cx) { this.range = null; this.save(); this.refresh(cx); }
+  reset(cx) { this.range = null; this.save(cx); this.refresh(cx); }
 
   setMode(mode, cx) {
     if (this.mode === mode) return;
     this.mode = mode;
-    this.save();
+    this.save(cx);
     this.refresh(cx);
   }
 
@@ -274,7 +287,7 @@ export default class Explorer extends View {
     this[which] = ref;
     this.range = null;
     this.picker = null;
-    this.save();
+    this.save(cx);
     this.refresh(cx);
   }
 
