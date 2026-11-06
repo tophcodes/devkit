@@ -6,7 +6,7 @@
 // Works on jj and git repositories, on any machine the tab lives on.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { props, theme, watchFolder, readTextFile, exec, focused, home } from "herdr";
+import { props, theme, watchFolder, exec, focused, home } from "herdr";
 import * as vcs from "./vcs.js";
 import { openInEditor, setEditorBase, snapshotPath, statePath, tabFolder, tabHistory, tabBases, machineOf } from "./editor.js";
 
@@ -78,7 +78,10 @@ export default class Explorer extends View {
   async readState() {
     const tab = this.tab;
     await this.writing;
-    const text = await readTextFile(statePath(tab), { on: machineOf(tab) }).catch(() => null);
+    // exec, which gives up after 30 s; a read that never returns would hold `loading` and
+    // stop every later refresh.
+    const r = await exec("sh", ["-c", 'cat "$1" 2>/dev/null; true', "state", statePath(tab)], { on: machineOf(tab) }).catch(() => null);
+    const text = r?.stdout || null;
     if (this.tab !== tab || text === this.stateText) return;
     this.stateText = text;
     let saved = {};
