@@ -1,0 +1,6 @@
+{
+  "layout:workbench": {
+    "ctrl-shift-o": "workbench-tabs.split-right",
+    "ctrl-shift-e": "workbench-tabs.split-down"
+  }
+}

@@ -1,2 +1,5 @@
 .direnv/
 result
+# herdr-app writes these into every mod folder.
+herdr/mods/*/jsconfig.json
+herdr/mods/*/*.d.ts
