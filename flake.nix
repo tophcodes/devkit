@@ -65,6 +65,7 @@
         in rec {
           prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
           claude-statusline = pkgs.callPackage ./packages/claude-statusline/package.nix {};
+          claude-herdr-status = pkgs.callPackage ./packages/claude-herdr-status/package.nix {};
           arch-check = pkgs.callPackage ./packages/arch-check/package.nix {};
           claude-arch-harness = pkgs.callPackage ./packages/claude-arch-harness/package.nix {inherit mkClaudePlugin arch-check;};
           claude-jj-guard = pkgs.callPackage ./packages/claude-jj-guard/package.nix {inherit mkClaudePlugin;};
