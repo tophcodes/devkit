@@ -49,6 +49,8 @@
         # Builds a Claude Code plugin; `mkClaudePlugin pkgs {name, src, runtimeInputs}`.
         lib.mkClaudePlugin = import ./lib/mk-claude-plugin.nix;
         modules.homeManager.claude = flake-parts-lib.importApply ./modules/claude.nix {localInputs = inputs;};
+        # Links the herdr workbench from a devkit checkout; see herdr/README.md.
+        modules.homeManager.herdr = ./modules/herdr.nix;
         templates.python = {
           path = ./templates/python;
           description = "Python project with pytest and ruff";
