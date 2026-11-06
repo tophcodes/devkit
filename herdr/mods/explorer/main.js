@@ -370,7 +370,7 @@ export default class Explorer extends View {
         .child(h_flex().gap(6).min_w(0)
           .when(Boolean(r.change), (el) => el.child(this.idText(r.change, r.changePrefix, c.change, t)))
           .when(Boolean(r.hash), (el) => el.child(this.idText(r.hash, r.hashPrefix, c.hash, t)))
-          .when(Boolean(r.refs), (el) => el.child(div().min_w(0).truncate().text_color(c.refs).child(r.refs))))
+          .when(Boolean(r.refs), (el) => el.child(div().min_w(0).truncate().text_color(c.refs).child(`(${r.refs})`))))
         .child(div().truncate().font_medium().text_color(r.desc ? t.foreground : t.dim).child(desc))
         .when(Boolean(r.time || r.author), (el) => el.child(h_flex().gap(6).min_w(0)
           .child(div().flex_none().text_color(c.time).child(r.time))

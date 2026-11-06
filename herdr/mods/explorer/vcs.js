@@ -69,9 +69,15 @@ export async function refs(repo, which) {
   return which === "head" ? [null, "HEAD", ...names] : names;
 }
 
+// A commit's refs as git names them: local bookmarks, remote ones as `<remote>/<name>`
+// (the colocated `git` remote left out), then tags.
+const JJ_REFS = 'separate(", ", local_bookmarks.map(|b| b.name()).join(", "), '
+  + 'remote_bookmarks.filter(|b| b.remote() != "git").map(|b| b.remote() ++ "/" ++ b.name()).join(", "), '
+  + 'tags.map(|t| t.name()).join(", "))';
+
 const JJ_ROW = [
   "change_id", "change_id.shortest(8)", "change_id.shortest().prefix()", "commit_id.shortest(8)",
-  "commit_id.shortest().prefix()", 'bookmarks.join(" ")', "description.first_line()",
+  "commit_id.shortest().prefix()", JJ_REFS, "description.first_line()",
   "committer.timestamp().ago()", "author.name()", 'if(current_working_copy, "1", "")',
 ].join(` ++ "${US}" ++ `) + ` ++ "${RS}"`;
 
