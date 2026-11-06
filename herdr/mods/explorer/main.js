@@ -86,6 +86,9 @@ export default class Explorer extends View {
     this.stateText = text;
     let saved = {};
     try { saved = JSON.parse(text ?? "{}") ?? {}; } catch { /* a broken file reads as no choices */ }
+    // Choices read here belong to the project they name: a project another window picked
+    // is detected afresh, which keeps its base, head and range.
+    if ((saved.project ?? null) !== this.project) this.repo = null;
     this.apply(saved);
   }
 
