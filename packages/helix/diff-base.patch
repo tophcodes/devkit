@@ -1,0 +1,419 @@
+diff --git a/helix-term/src/application.rs b/helix-term/src/application.rs
+index cf09aac..43166a2 100644
+--- a/helix-term/src/application.rs
++++ b/helix-term/src/application.rs
+@@ -234,6 +234,17 @@ pub fn new(args: Args, config: Config, lang_loader: syntax::Loader) -> Result<Se
+         ])
+         .context("build signal handler")?;
+ 
++        // The stale indicator in the statusline compares a file's mtime on every
++        // render, so a render every second shows a change on disk while the editor
++        // is idle. A file watcher that redraws only on a change would replace it.
++        tokio::spawn(async {
++            let mut ticks = tokio::time::interval(std::time::Duration::from_secs(1));
++            loop {
++                ticks.tick().await;
++                helix_event::request_redraw();
++            }
++        });
++
+         let app = Self {
+             compositor,
+             terminal,
+diff --git a/helix-term/src/commands/typed.rs b/helix-term/src/commands/typed.rs
+index 82cad83..2bd3648 100644
+--- a/helix-term/src/commands/typed.rs
++++ b/helix-term/src/commands/typed.rs
+@@ -1461,6 +1461,49 @@ fn reload_all(cx: &mut compositor::Context, _args: Args, event: PromptEvent) ->
+     Ok(())
+ }
+ 
++/// Sets the commit every document's diff base is read from, HEAD without an
++/// argument, and recomputes the diffs of the open documents. The text of a
++/// document stays as it is.
++fn diff_base(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow::Result<()> {
++    if event != PromptEvent::Validate {
++        return Ok(());
++    }
++
++    let base = args.first().map(AsRef::as_ref);
++    cx.editor.diff_providers.set_base(base);
++    let providers = cx.editor.diff_providers.clone();
++    // A document outside every repository keeps its diff, which may come from
++    // :diff-base-file.
++    for doc in cx.editor.documents_mut() {
++        let Some(path) = doc.path().cloned() else {
++            continue;
++        };
++        if let Some(diff_base) = providers.get_diff_base(&path) {
++            doc.set_diff_base(diff_base);
++        }
++    }
++    cx.editor
++        .set_status(format!("Diff base is now {}", base.unwrap_or("HEAD")));
++    Ok(())
++}
++
++/// Takes the current document's diff base from the contents of a file.
++fn diff_base_file(
++    cx: &mut compositor::Context,
++    args: Args,
++    event: PromptEvent,
++) -> anyhow::Result<()> {
++    if event != PromptEvent::Validate {
++        return Ok(());
++    }
++
++    let path = helix_stdx::path::expand_tilde(Path::new(&args[0]));
++    let diff_base = std::fs::read(&path)
++        .map_err(|err| anyhow!("Could not read '{}': {err}", path.display()))?;
++    doc_mut!(cx.editor).set_diff_base(diff_base);
++    Ok(())
++}
++
+ /// Update the [`Document`] if it has been modified.
+ fn update(cx: &mut compositor::Context, args: Args, event: PromptEvent) -> anyhow::Result<()> {
+     if event != PromptEvent::Validate {
+@@ -3229,6 +3272,28 @@ fn noop(_cx: &mut compositor::Context, _args: Args, _event: PromptEvent) -> anyh
+             ..Signature::DEFAULT
+         },
+     },
++    TypableCommand {
++        name: "diff-base",
++        aliases: &[],
++        doc: "Diff every document against a commit, given as its full id (HEAD without an argument, or in repositories without that commit).",
++        fun: diff_base,
++        completer: CommandCompleter::none(),
++        signature: Signature {
++            positionals: (0, Some(1)),
++            ..Signature::DEFAULT
++        },
++    },
++    TypableCommand {
++        name: "diff-base-file",
++        aliases: &[],
++        doc: "Diff the current document against the contents of a file.",
++        fun: diff_base_file,
++        completer: CommandCompleter::positional(&[completers::filename]),
++        signature: Signature {
++            positionals: (1, Some(1)),
++            ..Signature::DEFAULT
++        },
++    },
+     TypableCommand {
+         name: "update",
+         aliases: &["u"],
+diff --git a/helix-term/src/ui/statusline.rs b/helix-term/src/ui/statusline.rs
+index ea3d27b..4da5969 100644
+--- a/helix-term/src/ui/statusline.rs
++++ b/helix-term/src/ui/statusline.rs
+@@ -141,6 +141,7 @@ fn get_render_function<'a, F>(element_id: StatusLineElementID) -> impl Fn(&mut R
+             render_file_modification_indicator
+         }
+         helix_view::editor::StatusLineElement::ReadOnlyIndicator => render_read_only_indicator,
++        helix_view::editor::StatusLineElement::FileStaleIndicator => render_file_stale_indicator,
+         helix_view::editor::StatusLineElement::FileEncoding => render_file_encoding,
+         helix_view::editor::StatusLineElement::FileLineEnding => render_file_line_ending,
+         helix_view::editor::StatusLineElement::FileIndentStyle => render_file_indent_style,
+@@ -502,6 +503,18 @@ fn render_read_only_indicator<'a, F>(context: &mut RenderContext<'a>, write: F)
+     write(context, title.into());
+ }
+ 
++fn render_file_stale_indicator<'a, F>(context: &mut RenderContext<'a>, write: F)
++where
++    F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
++{
++    let title = if context.doc.is_stale() {
++        " [stale] "
++    } else {
++        ""
++    };
++    write(context, title.into());
++}
++
+ fn render_file_base_name<'a, F>(context: &mut RenderContext<'a>, write: F)
+ where
+     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
+diff --git a/helix-vcs/src/git.rs b/helix-vcs/src/git.rs
+index 1be71af..9679352 100644
+--- a/helix-vcs/src/git.rs
++++ b/helix-vcs/src/git.rs
+@@ -27,7 +27,11 @@ fn get_repo_dir(file: &Path) -> Result<&Path> {
+     file.parent().context("file has no parent directory")
+ }
+ 
+-pub fn get_diff_base(file: &Path) -> Result<Vec<u8>> {
++/// Reads `file` as stored in `base`, a full commit id, or in HEAD when `base` is
++/// `None` or names no commit of the file's repository. The vendored gix has no
++/// revision parsing, so names like `HEAD~1` or a branch do not resolve. A file that `base` resolves for but
++/// does not contain yields an empty base, so every line shows as added.
++pub fn get_diff_base(file: &Path, base: Option<&str>) -> Result<Vec<u8>> {
+     debug_assert!(!file.exists() || file.is_file());
+     debug_assert!(file.is_absolute());
+     let file = gix::path::realpath(file).context("resolve symlinks")?;
+@@ -38,8 +42,21 @@ pub fn get_diff_base(file: &Path) -> Result<Vec<u8>> {
+     let repo = open_repo(repo_dir)
+         .context("failed to open git repo")?
+         .to_thread_local();
+-    let head = repo.head_commit()?;
+-    let file_oid = find_file_in_commit(&repo, &head, &file)?;
++    let explicit = base.and_then(|rev| {
++        let id = ObjectId::from_hex(rev.as_bytes()).ok()?;
++        repo.find_commit(id).ok()
++    });
++    let found = explicit.is_some();
++    let commit = match explicit {
++        Some(commit) => commit,
++        None => repo.head_commit()?,
++    };
++    let Some(file_oid) = find_file_in_commit(&repo, &commit, &file)? else {
++        if found {
++            return Ok(Vec::new());
++        }
++        bail!("file is untracked");
++    };
+ 
+     let file_object = repo.find_object(file_oid)?;
+     let data = file_object.detach().data;
+@@ -194,19 +211,24 @@ fn status(repo: &Repository, f: impl Fn(Result<FileChange>) -> bool) -> Result<(
+ }
+ 
+ /// Finds the object that contains the contents of a file at a specific commit.
+-fn find_file_in_commit(repo: &Repository, commit: &Commit, file: &Path) -> Result<ObjectId> {
++/// The blob of `file` in `commit`, `None` when the commit does not contain it.
++fn find_file_in_commit(
++    repo: &Repository,
++    commit: &Commit,
++    file: &Path,
++) -> Result<Option<ObjectId>> {
+     let repo_dir = repo.workdir().context("repo has no worktree")?;
+     let rel_path = file.strip_prefix(repo_dir)?;
+     let tree = commit.tree()?;
+-    let tree_entry = tree
+-        .lookup_entry_by_path(rel_path)?
+-        .context("file is untracked")?;
++    let Some(tree_entry) = tree.lookup_entry_by_path(rel_path)? else {
++        return Ok(None);
++    };
+     match tree_entry.mode().kind() {
+         // not a file, everything is new, do not show diff
+         mode @ (EntryKind::Tree | EntryKind::Commit | EntryKind::Link) => {
+             bail!("entry at {} is not a file but a {mode:?}", file.display())
+         }
+         // found a file
+-        EntryKind::Blob | EntryKind::BlobExecutable => Ok(tree_entry.object_id()),
++        EntryKind::Blob | EntryKind::BlobExecutable => Ok(Some(tree_entry.object_id())),
+     }
+ }
+diff --git a/helix-vcs/src/git/test.rs b/helix-vcs/src/git/test.rs
+index 164040f..5707097 100644
+--- a/helix-vcs/src/git/test.rs
++++ b/helix-vcs/src/git/test.rs
+@@ -33,6 +33,16 @@ fn exec_git_cmd(args: &str, git_dir: &Path) {
+     }
+ }
+ 
++fn head_id(repo: &Path) -> String {
++    let res = Command::new("git")
++        .arg("-C")
++        .arg(repo)
++        .args(["rev-parse", "HEAD"])
++        .output()
++        .expect("`git rev-parse HEAD` failed");
++    String::from_utf8(res.stdout).unwrap().trim().to_string()
++}
++
+ fn create_commit(repo: &Path, add_modified: bool) {
+     if add_modified {
+         exec_git_cmd("add -A", repo);
+@@ -54,7 +64,7 @@ fn missing_file() {
+     let file = temp_git.path().join("file.txt");
+     File::create(&file).unwrap().write_all(b"foo").unwrap();
+ 
+-    assert!(git::get_diff_base(&file).is_err());
++    assert!(git::get_diff_base(&file, None).is_err());
+ }
+ 
+ #[test]
+@@ -64,7 +74,7 @@ fn unmodified_file() {
+     let contents = b"foo".as_slice();
+     File::create(&file).unwrap().write_all(contents).unwrap();
+     create_commit(temp_git.path(), true);
+-    assert_eq!(git::get_diff_base(&file).unwrap(), Vec::from(contents));
++    assert_eq!(git::get_diff_base(&file, None).unwrap(), Vec::from(contents));
+ }
+ 
+ #[test]
+@@ -76,7 +86,7 @@ fn modified_file() {
+     create_commit(temp_git.path(), true);
+     File::create(&file).unwrap().write_all(b"bar").unwrap();
+ 
+-    assert_eq!(git::get_diff_base(&file).unwrap(), Vec::from(contents));
++    assert_eq!(git::get_diff_base(&file, None).unwrap(), Vec::from(contents));
+ }
+ 
+ /// Test that `get_file_head` does not return content for a directory.
+@@ -95,7 +105,7 @@ fn directory() {
+ 
+     std::fs::remove_dir_all(&dir).unwrap();
+     File::create(&dir).unwrap().write_all(b"bar").unwrap();
+-    assert!(git::get_diff_base(&dir).is_err());
++    assert!(git::get_diff_base(&dir, None).is_err());
+ }
+ 
+ /// Test that `get_diff_base` resolves symlinks so that the same diff base is
+@@ -122,8 +132,8 @@ fn symlink() {
+     symlink("file.txt", &file_link).unwrap();
+     create_commit(temp_git.path(), true);
+ 
+-    assert_eq!(git::get_diff_base(&file_link).unwrap(), contents);
+-    assert_eq!(git::get_diff_base(&file).unwrap(), contents);
++    assert_eq!(git::get_diff_base(&file_link, None).unwrap(), contents);
++    assert_eq!(git::get_diff_base(&file, None).unwrap(), contents);
+ }
+ 
+ /// Test that `get_diff_base` returns content when the file is a symlink to
+@@ -147,6 +157,53 @@ fn symlink_to_git_repo() {
+     let file_link = temp_dir.path().join("file_link.txt");
+     symlink(&file, &file_link).unwrap();
+ 
+-    assert_eq!(git::get_diff_base(&file_link).unwrap(), contents);
+-    assert_eq!(git::get_diff_base(&file).unwrap(), contents);
++    assert_eq!(git::get_diff_base(&file_link, None).unwrap(), contents);
++    assert_eq!(git::get_diff_base(&file, None).unwrap(), contents);
++}
++
++#[test]
++fn file_at_base_revision() {
++    let temp_git = empty_git_repo();
++    let file = temp_git.path().join("file.txt");
++    File::create(&file).unwrap().write_all(b"foo").unwrap();
++    create_commit(temp_git.path(), true);
++    let base = head_id(temp_git.path());
++    File::create(&file).unwrap().write_all(b"bar").unwrap();
++    create_commit(temp_git.path(), true);
++    File::create(&file).unwrap().write_all(b"baz").unwrap();
++
++    assert_eq!(
++        git::get_diff_base(&file, Some(&base)).unwrap(),
++        b"foo".to_vec()
++    );
++}
++
++#[test]
++fn file_missing_at_base_revision_is_empty() {
++    let temp_git = empty_git_repo();
++    let other = temp_git.path().join("other.txt");
++    File::create(&other).unwrap().write_all(b"foo").unwrap();
++    create_commit(temp_git.path(), true);
++    let base = head_id(temp_git.path());
++    let file = temp_git.path().join("file.txt");
++    File::create(&file).unwrap().write_all(b"bar").unwrap();
++    create_commit(temp_git.path(), true);
++
++    assert!(git::get_diff_base(&file, Some(&base))
++        .unwrap()
++        .is_empty());
++}
++
++#[test]
++fn unknown_base_reads_head() {
++    let temp_git = empty_git_repo();
++    let file = temp_git.path().join("file.txt");
++    File::create(&file).unwrap().write_all(b"foo").unwrap();
++    create_commit(temp_git.path(), true);
++    File::create(&file).unwrap().write_all(b"bar").unwrap();
++
++    assert_eq!(
++        git::get_diff_base(&file, Some("0123456789abcdef0123456789abcdef01234567")).unwrap(),
++        b"foo".to_vec()
++    );
+ }
+diff --git a/helix-vcs/src/lib.rs b/helix-vcs/src/lib.rs
+index 4c5f203..74baecd 100644
+--- a/helix-vcs/src/lib.rs
++++ b/helix-vcs/src/lib.rs
+@@ -25,15 +25,22 @@
+ #[derive(Clone)]
+ pub struct DiffProviderRegistry {
+     providers: Vec<DiffProvider>,
++    /// The commit id diffs are taken against; `None` is HEAD.
++    base: Option<Arc<str>>,
+ }
+ 
+ impl DiffProviderRegistry {
++    /// Sets the commit id every later diff base is read from; `None` is HEAD.
++    pub fn set_base(&mut self, base: Option<&str>) {
++        self.base = base.map(Into::into);
++    }
++
+     /// Get the given file from the VCS. This provides the unedited document as a "base"
+     /// for a diff to be created.
+     pub fn get_diff_base(&self, file: &Path) -> Option<Vec<u8>> {
+         self.providers
+             .iter()
+-            .find_map(|provider| match provider.get_diff_base(file) {
++            .find_map(|provider| match provider.get_diff_base(file, self.base.as_deref()) {
+                 Ok(res) => Some(res),
+                 Err(err) => {
+                     log::debug!("{err:#?}");
+@@ -86,7 +93,10 @@ fn default() -> Self {
+             DiffProvider::Git,
+             DiffProvider::None,
+         ];
+-        DiffProviderRegistry { providers }
++        DiffProviderRegistry {
++            providers,
++            base: None,
++        }
+     }
+ }
+ 
+@@ -102,10 +112,10 @@ enum DiffProvider {
+ }
+ 
+ impl DiffProvider {
+-    fn get_diff_base(&self, file: &Path) -> Result<Vec<u8>> {
++    fn get_diff_base(&self, file: &Path, base: Option<&str>) -> Result<Vec<u8>> {
+         match self {
+             #[cfg(feature = "git")]
+-            Self::Git => git::get_diff_base(file),
++            Self::Git => git::get_diff_base(file, base),
+             Self::None => bail!("No diff support compiled in"),
+         }
+     }
+diff --git a/helix-view/src/document.rs b/helix-view/src/document.rs
+index 2fff234..b1bbc40 100644
+--- a/helix-view/src/document.rs
++++ b/helix-view/src/document.rs
+@@ -1181,6 +1181,15 @@ pub fn detect_editor_config(&mut self) {
+         }
+     }
+ 
++    /// Whether the file on disk changed after the document last read or wrote it.
++    /// Reads the file's metadata on every call.
++    pub fn is_stale(&self) -> bool {
++        self.path()
++            .and_then(|path| path.metadata().ok())
++            .and_then(|metadata| metadata.modified().ok())
++            .is_some_and(|mtime| mtime > self.last_saved_time)
++    }
++
+     pub fn pickup_last_saved_time(&mut self) {
+         self.last_saved_time = match self.path() {
+             Some(path) => match path.metadata() {
+diff --git a/helix-view/src/editor.rs b/helix-view/src/editor.rs
+index 27dc452..e51c884 100644
+--- a/helix-view/src/editor.rs
++++ b/helix-view/src/editor.rs
+@@ -581,6 +581,10 @@ pub enum StatusLineElement {
+     /// An indicator that shows `"[readonly]"` when a file cannot be written
+     ReadOnlyIndicator,
+ 
++    /// An indicator that shows `"[stale]"` when the file on disk changed after
++    /// the document last read or wrote it
++    FileStaleIndicator,
++
+     /// The file encoding
+     FileEncoding,
+ 

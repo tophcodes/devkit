@@ -51,6 +51,8 @@
         modules.homeManager.claude = flake-parts-lib.importApply ./modules/claude.nix {localInputs = inputs;};
         # Links the herdr workbench from a devkit checkout; see herdr/README.md.
         modules.homeManager.herdr = ./modules/herdr.nix;
+        # Helix with the diff-base commands and the stale indicator the workbench uses.
+        overlays.helix = import ./packages/helix/overlay.nix;
         templates.python = {
           path = ./templates/python;
           description = "Python project with pytest and ruff";
@@ -68,6 +70,7 @@
           prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
           claude-statusline = pkgs.callPackage ./packages/claude-statusline/package.nix {};
           claude-herdr-status = pkgs.callPackage ./packages/claude-herdr-status/package.nix {};
+          inherit ((pkgs.extend self.overlays.helix)) helix;
           arch-check = pkgs.callPackage ./packages/arch-check/package.nix {};
           claude-arch-harness = pkgs.callPackage ./packages/claude-arch-harness/package.nix {inherit mkClaudePlugin arch-check;};
           claude-jj-guard = pkgs.callPackage ./packages/claude-jj-guard/package.nix {inherit mkClaudePlugin;};
