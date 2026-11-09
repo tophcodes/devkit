@@ -26,4 +26,11 @@ runs `:diff-base-file`. The last two need the Helix from `overlays.helix`
 from the range it marks, and opens a file as a read-only snapshot when the
 range ends below the working copy.
 
+herdr-app on macOS does not reload a mod when a file behind a linked folder
+changes. To work on the mods against such a machine, run
+`just herdr-sync <ssh-host>`: it copies the layout file and the three mod
+folders into the remote herdr-app home over SSH on every change, and the
+running window there reloads. The copies replace the links on that machine;
+`ln -sfh` restores them afterwards.
+
 After a change, run `herdr-app check` on each changed mod folder.
