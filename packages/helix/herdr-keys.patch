@@ -1,0 +1,72 @@
+diff --git a/helix-term/src/config.rs b/helix-term/src/config.rs
+index bcba8d8..89ad36e 100644
+--- a/helix-term/src/config.rs
++++ b/helix-term/src/config.rs
+@@ -122,10 +122,37 @@ pub fn load_default() -> Result<Config, ConfigLoadError> {
+             fs::read_to_string(helix_loader::config_file()).map_err(ConfigLoadError::Error);
+         let local_config = fs::read_to_string(helix_loader::workspace_config_file())
+             .map_err(ConfigLoadError::Error);
+-        Config::load(global_config, local_config)
++        let mut config = Config::load(global_config, local_config)?;
++        // Only the herdr workbench starts hx with HERDR_OPEN set. Its keys merge
++        // last, so a binding in the global or workspace config cannot shadow them.
++        if std::env::var_os("HERDR_OPEN").is_some_and(|v| !v.is_empty()) {
++            merge_keys(&mut config.keys, herdr_keys());
++        }
++        Ok(config)
+     }
+ }
+ 
++/// The keys the herdr workbench mods press, since herdr-core cannot type ":".
++/// Each command reads its argument from a file next to the one HERDR_OPEN
++/// names; `sh -c` keeps them independent of `editor.shell`.
++/// - A-F12 opens the path in the HERDR_OPEN file.
++/// - A-F11 loads the theme the workbench-tabs mod writes from herdr's colors.
++/// - A-F10 diffs every document against the commit id in `$HERDR_OPEN.base`
++///   (empty for HEAD).
++/// - A-F9 diffs the current document against the file named in
++///   `$HERDR_OPEN.base-file`.
++const HERDR_KEYS: &str = r#"
++[normal]
++A-F12 = ":open %sh{sh -c 'cat \"$HERDR_OPEN\"'}"
++A-F11 = ":theme herdr"
++A-F10 = ":diff-base %sh{sh -c 'cat \"$HERDR_OPEN.base\" 2>/dev/null; true'}"
++A-F9 = ":diff-base-file %sh{sh -c 'cat \"$HERDR_OPEN.base-file\"'}"
++"#;
++
++fn herdr_keys() -> HashMap<Mode, KeyTrie> {
++    toml::from_str(HERDR_KEYS).expect("the herdr keys parse")
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -174,6 +201,28 @@ fn parsing_keymaps_config_file() {
+         );
+     }
+ 
++    #[test]
++    fn herdr_keys_win_over_the_user_config() {
++        use helix_view::input::KeyEvent;
++
++        let mut keys = Config::load_test(
++            r#"
++            [keys.normal]
++            A-F12 = "move_next_word_end"
++            "#,
++        )
++        .keys;
++        merge_keys(&mut keys, herdr_keys());
++
++        let herdr = herdr_keys();
++        for key in ["A-F12", "A-F11", "A-F10", "A-F9"] {
++            let key: KeyEvent = key.parse().unwrap();
++            let bound = keys[&Mode::Normal].search(&[key]);
++            assert!(bound.is_some());
++            assert_eq!(bound, herdr[&Mode::Normal].search(&[key]));
++        }
++    }
++
+     #[test]
+     fn keys_resolve_to_correct_defaults() {
+         // From serde default
