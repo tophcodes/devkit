@@ -19,13 +19,15 @@ folder; `.gitignore` keeps them out.
 
 The labels the explorer reads come from `claude-herdr-status`, the Claude Code
 hook script in `packages/claude-herdr-status`; its `hooks` attribute holds the
-Claude Code hooks that run it. Every machine a tab lives on needs the Helix
-from `overlays.helix` (`packages/helix`). It binds the keys the mods press, in
-an hx started with `HERDR_OPEN` set: `alt-f12` opens a file, `alt-f11` loads
-the `herdr` theme, `alt-f10` runs `:diff-base` and `alt-f9` runs
-`:diff-base-file`. The explorer sets the commit the tab's hx diffs against from
-the range it marks, and opens a file as a read-only snapshot when the range
-ends below the working copy.
+Claude Code hooks that run it. Every machine a tab's terminals run on imports
+the NixOS module `modules.nixos.herdr`: it installs jj, git and the Helix from
+`overlays.helix` (`packages/helix`), registers those hooks for every Claude
+Code session there, and can start herdr-core at boot. That Helix binds the
+keys the mods press, in an hx started with `HERDR_OPEN` set: `alt-f12` opens a
+file, `alt-f11` loads the `herdr` theme, `alt-f10` runs `:diff-base` and
+`alt-f9` runs `:diff-base-file`. The explorer sets the commit the tab's hx
+diffs against from the range it marks, and opens a file as a read-only
+snapshot when the range ends below the working copy.
 
 herdr-app on macOS does not reload a mod when a file behind a linked folder
 changes. To work on the mods against such a machine, run

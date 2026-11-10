@@ -51,6 +51,9 @@
         modules.homeManager.claude = flake-parts-lib.importApply ./modules/claude.nix {localInputs = inputs;};
         # Links the herdr workbench from a devkit checkout; see herdr/README.md.
         modules.homeManager.herdr = ./modules/herdr.nix;
+        # A machine the workbench's tabs run on: hx, jj, git, the status hooks
+        # and optionally the boot unit for herdr-core.
+        modules.nixos.herdr = flake-parts-lib.importApply ./modules/herdr-machine.nix {localInputs = inputs;};
         # Helix with the diff-base commands and the stale indicator the workbench uses.
         overlays.helix = import ./packages/helix/overlay.nix;
         templates.python = {
