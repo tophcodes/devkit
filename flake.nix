@@ -73,6 +73,7 @@
           prose-check = pkgs.callPackage ./packages/prose-check/package.nix {};
           claude-statusline = pkgs.callPackage ./packages/claude-statusline/package.nix {};
           claude-herdr-status = pkgs.callPackage ./packages/claude-herdr-status/package.nix {};
+          system-diff = pkgs.callPackage ./packages/system-diff/package.nix {};
           inherit ((pkgs.extend self.overlays.helix)) helix;
           arch-check = pkgs.callPackage ./packages/arch-check/package.nix {};
           claude-arch-harness = pkgs.callPackage ./packages/claude-arch-harness/package.nix {inherit mkClaudePlugin arch-check;};
