@@ -5,7 +5,7 @@
 // It sits beside the tab area as a sidebar and follows the shown tab; props { tab } pin one.
 // Works on jj and git repositories, on any machine the tab lives on.
 import { View, div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { v_flex, h_flex, InputState, Input, Scrollbar, v_virtual_list } from "gpui-base";
 import { props, theme, watchFolder, exec, focused, home } from "herdr";
 import * as vcs from "./vcs.js";
 import { openInEditor, setEditorBase, snapshotPath, statePath, tabFolder, tabHistory, tabBases, machineOf } from "./editor.js";
@@ -54,6 +54,9 @@ export default class Explorer extends View {
   }
 
   apply(saved) {
+    // The flattened tree (treeRows), kept until what it is built from changes: every
+    // hover repaints the window, and walking the tree on each repaint makes hover lag.
+    this.tree = null;
     this.mode = saved.mode ?? "full";
     this.base = saved.base ?? null;
     this.head = saved.head ?? null;
@@ -63,7 +66,7 @@ export default class Explorer extends View {
     this.project = saved.project ?? null;
   }
 
-  // The choices live in the tab's state file (statePath), so windows showing the same tab
+  // The choices are kept in the tab's state file (statePath), so windows showing the same tab
   // agree. One task writes the newest choices until none are left; while it runs, reads
   // are skipped, so a read never undoes a choice made in this window. Another window's
   // choice shows at this window's next refresh. The write runs in a cx.spawn task: a
@@ -145,6 +148,7 @@ export default class Explorer extends View {
           this.repo = await vcs.detect(folder, on);
           this.entries = new Map();
           this.open = new Set();
+          this.tree = null;
           // Base, head and line name revisions of the previous repository.
           if (!first) { this.base = null; this.head = null; this.range = null; this.save(cx); }
           this.watch(this.repo, cx);
@@ -167,6 +171,7 @@ export default class Explorer extends View {
         this.kinds = folderKinds(this.changes);
         this.index = childIndex(this.changes);
         await this.loadFolders(repo);
+        this.tree = null;
         this.error = null;
       } catch (e) {
         this.error = String(e?.message ?? e);
@@ -229,6 +234,7 @@ export default class Explorer extends View {
   setMode(mode, cx) {
     if (this.mode === mode) return;
     this.mode = mode;
+    this.tree = null;
     this.save(cx);
     this.refresh(cx);
   }
@@ -308,6 +314,7 @@ export default class Explorer extends View {
   expanded(path) { return this.full() ? this.open.has(path) : !this.collapsed.has(path); }
 
   toggleFolder(path, cx) {
+    this.tree = null;
     if (this.full()) {
       if (this.open.has(path)) {
         for (const p of [...this.open]) if (p === path || p.startsWith(`${path}/`)) this.open.delete(p);
@@ -316,7 +323,7 @@ export default class Explorer extends View {
         const repo = this.repo;
         cx.spawn(async (cx) => {
           const entries = await vcs.directory(repo, path).catch(() => []);
-          if (this.repo === repo) this.entries.set(path, entries);
+          if (this.repo === repo) { this.entries.set(path, entries); this.tree = null; }
           cx.notify();
         });
       }
@@ -337,25 +344,38 @@ export default class Explorer extends View {
     return !kinds ? null : kinds.size === 1 ? [...kinds][0] : "M";
   }
 
-  treeRows(prefix, depth, out, t) {
+  // The visible tree, flattened in display order. Plain data: only the rows on screen
+  // become elements (treeRow, inside the tree's v_virtual_list).
+  treeRows(prefix, depth, out) {
     for (const entry of this.children(prefix)) {
       if (out.length >= MAX_ROWS) return out;
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-      const kind = this.kindOf(path, entry.dir), open = entry.dir && this.expanded(path);
-      const color = kind ? t[COLOR[kind]] : this.isIgnored(path, entry.dir) ? t.dim : t.foreground;
-      out.push(h_flex().id(`f-${path}`).h(26).flex_none().pl(8 + depth * 16).pr(10).gap(6).items_center().rounded(6)
-        .cursor_pointer().hover((s) => s.bg(t.hover))
-        .on_click((_e, cx) => {
-          if (entry.dir) this.toggleFolder(path, cx);
-          else if (kind !== "D") this.openFile(path).catch((e) => { this.error = String(e?.message ?? e); });
-        })
-        .child(entry.dir ? svg(`mods/files/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
-        .child(svg(`mods/files/${entry.dir ? "folder" : "file"}.svg`).size(14).flex_none().text_color(kind ? color : t.muted))
-        .child(div().flex_1().min_w(0).truncate().text_color(color).when(kind === "D", (el) => el.line_through()).child(entry.name))
-        .when(Boolean(kind), (el) => el.child(div().flex_none().text_size(11).font_semibold().text_color(color).child(kind))));
-      if (open) this.treeRows(path, depth + 1, out, t);
+      const open = entry.dir && this.expanded(path);
+      out.push({ path, name: entry.name, dir: entry.dir, depth, open, kind: this.kindOf(path, entry.dir) });
+      if (open) this.treeRows(path, depth + 1, out);
     }
     return out;
+  }
+
+  /** One tree row's element. Runs inside layout, so it registers no handlers (clickRow). */
+  treeRow(r, t) {
+    const { kind } = r;
+    const color = kind ? t[COLOR[kind]] : this.isIgnored(r.path, r.dir) ? t.dim : t.foreground;
+    // The id is what makes GPUI track the row's hover state; without it hover only shows
+    // on the next repaint.
+    return h_flex().id(`f-${r.path}`).h(26).flex_none().pl(8 + r.depth * 16).pr(10).gap(6).items_center().rounded(6)
+      .cursor_pointer().hover((s) => s.bg(t.hover))
+      .child(r.dir ? svg(`mods/files/chevron-${r.open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
+      .child(svg(`mods/files/${r.dir ? "folder" : "file"}.svg`).size(14).flex_none().text_color(kind ? color : t.muted))
+      .child(div().flex_1().min_w(0).truncate().text_color(color).when(kind === "D", (el) => el.line_through()).child(r.name))
+      .when(Boolean(kind), (el) => el.child(div().flex_none().text_size(11).font_semibold().text_color(color).child(kind)));
+  }
+
+  clickRow(path, cx) {
+    const r = this.tree.find((row) => row.path === path);
+    if (!r) return;
+    if (r.dir) this.toggleFolder(path, cx);
+    else if (r.kind !== "D") this.openFile(path).catch((e) => { this.error = String(e?.message ?? e); });
   }
 
   segment(t, label, mode) {
@@ -511,7 +531,7 @@ export default class Explorer extends View {
       else this.refresh(cx);
     }
     const t = theme();
-    const tree = this.treeRows("", 0, [], t);
+    const tree = this.tree ??= this.treeRows("", 0, []);
     const status = this.error ?? (this.loading && !this.entries.size && !this.changes.size ? "Loading…" : null);
     const folder = (this.repo?.root ?? "").replace(home(), "~");
     return v_flex().id("explorer").size_full().min_h(0).bg(t.background).text_color(t.foreground).text_size(13)
@@ -530,7 +550,12 @@ export default class Explorer extends View {
   }
 
   treeList(t, tree, status) {
-    return v_flex().id("tree").min_h(0).overflow_y_scrollbar().p(6).children(tree)
+    return v_flex().min_h(0).p(6)
+      .child(div().flex_1().min_h(0).relative()
+        .child(v_virtual_list("tree", tree.length, 26, (i) => tree[i].path,
+          (range) => tree.slice(range.start, range.end).map((r) => this.treeRow(r, t)))
+          .size_full().on_item_click((path, cx) => this.clickRow(path, cx)))
+        .child(Scrollbar.vertical("tree").viewport_from_layout().absolute().inset_0()))
       .when(Boolean(status) || !tree.length, (el) => el.child(div().p(8).text_size(12).text_color(t.dim)
         .child(status ?? (!this.full() ? "No changes in this range" : "Empty folder"))));
   }
