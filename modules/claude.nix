@@ -43,7 +43,8 @@ in {
     # Code reads rules/ recursively.
     home.file.".claude/rules/devkit".source = src + "/rules";
 
-    # The skills call prose-check too, prose-review among them.
-    home.packages = [packages.prose-check] ++ lib.concatLists (lib.attrValues enabled);
+    # The skills call prose-check too, prose-review among them. pt is how a
+    # session runs a command that prompts on a terminal.
+    home.packages = [packages.prose-check packages.pt] ++ lib.concatLists (lib.attrValues enabled);
   };
 }
