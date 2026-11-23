@@ -9,6 +9,9 @@ This folder mirrors the herdr-app home (`~/.config/herdr-app`):
 - `mods/explorer`, `mods/workbench-tabs`, `mods/workbench-pane`: its mods.
   `editor.js` exists in all three, because a mod cannot import from another
   mod's folder. Keep the three copies identical.
+- `mods/remote-links`: the layout's link handler. A Ctrl-click on a file or a
+  localhost URL in a terminal on another machine opens it on this one: the
+  file through herdr-core, the URL against that machine's tailnet hostname.
 - `keys.json`: the `layout:workbench` section, merged into the herdr-app
   `keys.json`. herdr-app and Toph edit that file, so it stays a real file.
 

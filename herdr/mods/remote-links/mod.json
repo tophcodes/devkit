@@ -1,0 +1,8 @@
+{
+  "place": "none",
+  "title": "Remote links",
+  "link_handlers": [
+    { "kind": "url", "pattern": "^https?://(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\[::1\\])([:/]|$)" },
+    { "kind": "file", "pattern": "." }
+  ]
+}

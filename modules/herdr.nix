@@ -12,7 +12,7 @@
 }: let
   cfg = config.devkit.herdr;
   home = ".config/herdr-app";
-  paths = ["layouts/workbench.json" "mods/explorer" "mods/workbench-tabs" "mods/workbench-pane"];
+  paths = ["layouts/workbench.json" "mods/explorer" "mods/workbench-tabs" "mods/workbench-pane" "mods/remote-links"];
 in {
   options.devkit.herdr.checkout = lib.mkOption {
     type = lib.types.str;

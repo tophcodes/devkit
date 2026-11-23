@@ -5,6 +5,7 @@
     "version": "0.1.10"
   },
   "type": "row",
+  "link_handlers": ["remote-links"],
   "children": [
     {
       "id": "sidebar",
