@@ -84,8 +84,11 @@
             pkgs.watchexec
             config.treefmt.build.wrapper
             prose-check
+            pkgs.openspec
           ]
           ++ cfg.packages;
+        # OpenSpec reports usage to its authors unless this is set.
+        DO_NOT_TRACK = "1";
       };
 
       checks =
