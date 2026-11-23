@@ -47,6 +47,9 @@ what it builds, change only how.
    `devkit.testCommand`; `check` is `nix flake check`.
 5. `.envrc` is `# shellcheck shell=bash` plus `use flake`.
 6. `nix fmt`, then `just check`, and fix what it reports.
+7. From a devkit checkout, `just openspec-adopt <path>` adds the OpenSpec
+   configuration. Distil existing ADRs or design notes into requirements with
+   `/openspec-propose`.
 
 `devkit.testCommand` runs in the build sandbox without network. When the tests
 need fetched dependencies (cargo crates, npm packages), leave it null and

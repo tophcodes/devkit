@@ -24,3 +24,8 @@ fmt:
 # everything CI checks
 check:
     nix flake check
+
+# set up OpenSpec in an existing repository, keeping a config it already has
+openspec-adopt repo:
+    mkdir -p {{ repo }}/openspec
+    cp -n openspec/config.yaml {{ repo }}/openspec/config.yaml
