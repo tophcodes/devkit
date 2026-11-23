@@ -35,7 +35,12 @@ in {
     programs.claude-code = {
       enable = true;
       plugins = lib.mapAttrs (name: _: packages."claude-${name}") enabled;
-      skills = lib.mapAttrs (name: _: src + "/skills/${name}") (builtins.readDir (src + "/skills"));
+      # Reading the openspec-skills output is import-from-derivation: evaluation
+      # builds it first. It keeps the skill names in step with openspec without
+      # a list here to maintain.
+      skills =
+        lib.mapAttrs (name: _: src + "/skills/${name}") (builtins.readDir (src + "/skills"))
+        // lib.mapAttrs (name: _: "${packages.openspec-skills}/${name}") (builtins.readDir packages.openspec-skills);
       commandsDir = src + "/commands";
     };
 
