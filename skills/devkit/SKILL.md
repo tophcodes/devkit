@@ -40,7 +40,12 @@ what it builds, change only how.
 2. `nix/devkit.nix`: import `inputs.devkit.flakeModules.default`, set
    `devkit.packages` (compiler, language tools, test runner),
    `devkit.testCommand`, and the language's formatters and linters under
-   `treefmt.programs` (ruff-format and ruff-check, rustfmt, biome).
+   `treefmt.programs` (ruff-format and ruff-check, rustfmt).
+   Biome goes under `treefmt.settings.formatter.biome` with `command`,
+   `options = ["check" "--write" "--no-errors-on-unmatched"]` and `includes`:
+   `treefmt.programs.biome` passes a generated `--config-path`, so the
+   repository's `biome.json` never applies. Before the first commit, `nix fmt`
+   on an existing repository must change no file.
 3. Everything else the old flake defined (packages, apps, overlays) moves into
    modules under `nix/`, or into `tools/<name>/default.nix` for a tool.
 4. `justfile` with the five required recipes. `test` calls the same command as
