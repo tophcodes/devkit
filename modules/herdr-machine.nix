@@ -4,6 +4,12 @@
 # on the machine reports to herdr-core through claude-herdr-status, from a
 # managed settings drop-in. With `devkit.herdr.core.users` set, a user unit
 # starts each listed user's core at boot.
+#
+# The workbench's remote-links mod opens a loopback URL from a terminal here
+# against this machine's tailnet hostname. `devkit.herdr.devPorts` opens a port
+# range on tailscale0 for that, and the managed CLAUDE.md tells every Claude
+# Code session here to serve on that range and to print paths and URLs the mod
+# can open.
 {localInputs}: {
   config,
   lib,
@@ -12,7 +18,25 @@
 }: let
   packages = localInputs.self.packages.${pkgs.stdenv.hostPlatform.system};
   cfg = config.devkit.herdr.core;
+  ports = config.devkit.herdr.devPorts;
 in {
+  options.devkit.herdr.devPorts = lib.mkOption {
+    type = lib.types.nullOr (lib.types.submodule {
+      options = {
+        from = lib.mkOption {type = lib.types.port;};
+        to = lib.mkOption {type = lib.types.port;};
+      };
+    });
+    default = {
+      from = 3000;
+      to = 9999;
+    };
+    description = ''
+      TCP ports open on tailscale0 for dev servers that agents start here.
+      Null opens none and leaves the managed CLAUDE.md out.
+    '';
+  };
+
   options.devkit.herdr.core = {
     package = lib.mkOption {
       type = lib.types.nullOr lib.types.package;
@@ -38,6 +62,26 @@ in {
         inherit (packages.claude-herdr-status) hooks;
       };
     }
+
+    (lib.mkIf (ports != null) {
+      networking.firewall.interfaces.tailscale0.allowedTCPPortRanges = [ports];
+
+      environment.etc."claude-code/CLAUDE.md".text = ''
+        # Showing work to Toph
+
+        Toph often watches this machine from another one, through the herdr
+        window. Ctrl-clicking a path or a localhost URL in a terminal opens it
+        there, so print things in a form that click can follow:
+
+        - A dev server listens on all interfaces (`0.0.0.0`) on a port from
+          ${toString ports.from} to ${toString ports.to}, for example `vite --host 0.0.0.0`
+          or `rails s -b 0.0.0.0`. Print its URL as `http://localhost:<port>`.
+          The firewall blocks other ports from the tailnet.
+        - A file meant for Toph (a screenshot, a report, a build artifact) gets
+          printed as its absolute path on a line of its own. Files above 8 MiB
+          do not transfer; say so and offer a smaller form.
+      '';
+    })
 
     (lib.mkIf (cfg.users != []) {
       assertions = [
