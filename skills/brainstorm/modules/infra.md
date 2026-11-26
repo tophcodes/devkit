@@ -5,15 +5,16 @@ backups, monitoring. Repository: `~/infra`.
 
 ## First, find out what already binds
 
-Run `arch-harness:arch-context` before anything else. It surfaces the active
-constraint checks and the decision records that already cover the area. This is
-the cheapest step in the whole module and it prevents the failure mode this
-repository is most prone to: deciding a second time, differently, something
-that was settled months ago.
+Read the specification that already covers the area before anything else:
+`openspec list --specs` lists the capabilities, `openspec show <capability> --type spec`
+reads one, and `openspec list` shows the open changes. Architecture decisions are
+requirements there. This is the cheapest step in the whole module and it prevents
+the failure mode this repository is most prone to: deciding a second time,
+differently, something that was settled months ago.
 
-Decision records live in `notes/adr/`; `notes/adr/000-adr-process.md` defines
-the format. Constraint checks live in `docs/constraints.md` and in the
-`checks:` frontmatter of the records.
+The requirements a shell command can check have an entry in `docs/constraints.md`;
+`just check` runs them. `notes/legacy/` holds the archived ADRs the specification
+was distilled from, as background only.
 
 ## Ask about
 
@@ -40,20 +41,17 @@ the format. Constraint checks live in `docs/constraints.md` and in the
 
 **Level 0**: no file.
 
-**Level 1**: an ADR in `notes/adr/`, following the process document. Not a
-spec: the artefact is the decision and its reasoning, not a build description.
+**Level 1**: an OpenSpec change that records the decision: the requirement it adds
+or changes, and a `design.md` with the reasoning and each rejected alternative.
+No task list beyond what archiving needs.
 
-**Level 2**: a design document in `docs/`, alongside an ADR if a real
-architectural choice was made. Run `arch-harness:arch-review` against it before
-executing.
-
-**Level 3**: as above, plus a plan written in plan mode and saved under
-`docs/plans/`. Warranted here more
-often than in other domains: migrations of live state, multi-host rollouts, and
-anything where the order of operations is what keeps the service up.
+**Level 2 and 3**: an OpenSpec change through `openspec-propose`: proposal, spec
+deltas, design and tasks. Its `tasks.md` carries the order of operations, which
+matters here more often than in other domains: migrations of live state,
+multi-host rollouts, and anything where the order is what keeps the service up.
 
 ## Follow-on skills
 
-- `arch-harness:arch-context`: always, first.
-- `arch-harness:arch-review`: level 2 and up, before executing.
+- `openspec-explore`: while the shape is still open.
+- `openspec-propose`: level 1 and up, once the design is agreed.
 - `encrypt-secret`: when the design introduces a new secret.

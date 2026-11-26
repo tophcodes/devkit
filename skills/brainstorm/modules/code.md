@@ -44,8 +44,10 @@ spec cannot: task order, interface handoffs between units, where the risk sits.
 
 - Write the failing test before the implementation code.
 - `/code-review`: the diff, before merging.
-- `arch-harness:arch-context`: when the change touches an area with existing
-  architecture decisions, before writing the spec.
+- In a repository with `openspec/`: read the capabilities the change touches
+  (`openspec list --specs`) before writing anything, and write level 2 and 3 as
+  an OpenSpec change through `openspec-propose` instead of `docs/specs/` and
+  `docs/plans/`.
 
 ## Before writing a spec
 

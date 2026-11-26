@@ -44,8 +44,9 @@ survive the conversation.
   coming back in four months.
 - A revisit trigger: the concrete thing that would make this worth reopening.
 
-Where it goes: if a repository is involved, its decision store (`notes/adr/`,
-`docs/decisions/`, whatever `arch-harness:arch-context` finds). If none is,
+Where it goes: if a repository is involved and has `openspec/`, an OpenSpec change
+whose `design.md` holds the note; otherwise its decision store (`docs/decisions/`,
+`notes/adr/`, whatever the repository already uses). If none is,
 **ask once** where it should live. Do not invent a path.
 
 **Level 2 and 3 do not apply.** A decision that needs a spec or a plan is not
