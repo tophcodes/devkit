@@ -1,8 +1,8 @@
 # devkit
 
 Shared foundation for Toph's own repositories: a flake-parts module and one
-template per language. The conventions it implements are in
-[ADR-001](notes/adr/001-just-surface-shared-flake-foundation.md).
+template per language. The conventions it implements are specified in
+[`openspec/specs/`](openspec/specs/).
 
 ## New project
 

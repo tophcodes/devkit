@@ -8,7 +8,7 @@ description: Set up or change the tooling of one of Toph's own repositories with
 devkit (`github:tophcodes/devkit`) gives every own
 repository the same surface: a justfile with `default`, `dev`, `test`, `fmt`
 and `check`, a dev shell from the flake, and `nix flake check` as the gate.
-The decision and its reasons are ADR-001 in the devkit repository.
+The binding specification is `openspec/specs/` in the devkit repository.
 
 ## New project
 
