@@ -50,8 +50,8 @@ what it has to change. Produce it when the user asks for it, or when a change
 lands in a shared schema and nobody has said who consumes it.
 
 ```
-hausgold-sdk: drop plan_id from create and update, add allowed_stripe_price_ids to portal
-autopilot: subscription_v1 no longer carries plan_id
+billing-sdk: drop plan_id from create and update, add allowed_price_ids to portal
+storefront: subscription_v1 no longer carries plan_id
 ```
 
 ## Finding the elements
