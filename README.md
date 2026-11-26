@@ -7,7 +7,7 @@ template per language. The conventions it implements are in
 ## New project
 
 ```sh
-nix flake init -t git+ssh://git@github.com/tophcodes/devkit#python
+nix flake init -t github:tophcodes/devkit#python
 ```
 
 ## Existing project

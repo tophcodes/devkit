@@ -6,7 +6,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     import-tree.url = "github:vic/import-tree";
     devkit = {
-      url = "git+ssh://git@github.com/tophcodes/devkit";
+      url = "github:tophcodes/devkit";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };

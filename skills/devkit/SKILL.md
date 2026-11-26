@@ -5,7 +5,7 @@ description: Set up or change the tooling of one of Toph's own repositories with
 
 # devkit
 
-devkit (`git+ssh://git@github.com/tophcodes/devkit`) gives every own
+devkit (`github:tophcodes/devkit`) gives every own
 repository the same surface: a justfile with `default`, `dev`, `test`, `fmt`
 and `check`, a dev shell from the flake, and `nix flake check` as the gate.
 The decision and its reasons are ADR-001 in the devkit repository.
@@ -13,13 +13,13 @@ The decision and its reasons are ADR-001 in the devkit repository.
 ## New project
 
 ```sh
-nix flake init -t git+ssh://git@github.com/tophcodes/devkit#python
+nix flake init -t github:tophcodes/devkit#python
 ```
 
 Then rename the placeholder `app` (package directory, `pyproject.toml`,
 `description` in `flake.nix`), run `direnv allow`, and `just check`.
 
-`nix flake show git+ssh://git@github.com/tophcodes/devkit` lists the templates.
+`nix flake show github:tophcodes/devkit` lists the templates.
 If the language has none, follow "Add a template" below first, or build the
 repository by hand from the layout in the next section.
 
