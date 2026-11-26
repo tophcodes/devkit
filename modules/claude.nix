@@ -14,7 +14,6 @@
 
   # name -> the CLIs the plugin calls, installed with it.
   plugins = {
-    arch-harness = [packages.arch-check];
     jj-guard = [];
     prose-guard = [packages.prose-check];
   };

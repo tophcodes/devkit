@@ -77,8 +77,6 @@
           pt = pkgs.callPackage ./packages/pt/package.nix {};
           openspec-skills = pkgs.callPackage ./packages/openspec-skills/package.nix {};
           inherit ((pkgs.extend self.overlays.helix)) helix;
-          arch-check = pkgs.callPackage ./packages/arch-check/package.nix {};
-          claude-arch-harness = pkgs.callPackage ./packages/claude-arch-harness/package.nix {inherit mkClaudePlugin arch-check;};
           claude-jj-guard = pkgs.callPackage ./packages/claude-jj-guard/package.nix {inherit mkClaudePlugin;};
           claude-prose-guard = pkgs.callPackage ./packages/claude-prose-guard/package.nix {inherit mkClaudePlugin prose-check;};
         };
